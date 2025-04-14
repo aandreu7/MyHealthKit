@@ -1,18 +1,18 @@
 // components/AskMedicineScreen.tsx
 
 import { Alert, View, Text, Pressable, StyleSheet, Image } from 'react-native';
-import { sendMessageToRobot } from '@/app/sendMessage2Robot';
+import { sendMessageToRobot, Message2Robot } from '@/services/sendMessage2Robot';
 
 type Props = {
   onBack: () => void;
 };
  
 const handleDiagnosis = async () => {
-  const result = await sendMessageToRobot();
+  const result = await sendMessageToRobot(Message2Robot.StartDiagnosis);
   if (result.success) {
-    Alert.alert('Diagnóstico iniciado', 'El robot ha comenzado el proceso');
+    Alert.alert("Diagnosis started", "Don't worry, there's always a MyHealthKit looking after you!");
   } else {
-    Alert.alert('Error', result.error || 'No se pudo iniciar el diagnóstico');
+    Alert.alert('Error', result.error || 'Diagnosis could not be started');
   }
 };
 

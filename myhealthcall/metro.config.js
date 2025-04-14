@@ -6,6 +6,7 @@ config.resolver.alias = {
   '@': './',
   '@components': './components',
   '@assets': './assets',
+  '@services': './services',
   '@constants': './constants',
   '@hooks': './hooks',
 };
