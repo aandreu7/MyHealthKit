@@ -34,7 +34,7 @@ def index():
 @app.route('/start-diagnosis', methods=['POST'])
 def start_diagnosis():
     # Print a message to the console indicating the diagnosis is starting
-    print("Starting diagnosis on the robot...")
+    print("Starting diagnosis on the MyHealthKit...")
     """
     Upcoming code.
     """
