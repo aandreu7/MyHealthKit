@@ -53,22 +53,46 @@ def start_diagnosis():
     conn.close()
 
     message = [
-            { "role": "system", "content": "You are a doctor. Someone is asking you for a diagnosis and for a concrete medicine. "
-            "You have to listen to the patient and give him a diagnosis and a medicine or a group of medicines from the following list: "
-            + str(existing_medicines) + ". You can not choose a medicine that does not appear in the list."},
-            { "role": "user", "content": "I have a headache and I feel tired. What do you think?" }
+            {
+            "role": "system",
+            "content": "You are a doctor. When a patient asks for a diagnosis and medicine, you must follow this format exactly:\n"
+                        "1. **State a possible diagnosis** clearly, starting with 'The diagnosis could be [diagnosis]'.\n"
+                        "2. Then, **provide one or more medicines** that you think could be helpful. For each medicine:\n"
+                        "    - If the medicine is in the following list: " + str(existing_medicines) + ", say it is **available**.\n"
+                        "    - If the medicine is **not** in the list, say it is **not available currently**.\n"
+                        "The list of available medicines is: " + str(existing_medicines) + ".\n"
+                        "Only provide the diagnosis and the medicines. No additional information or suggestions are allowed.\n"
+                        "Be sure to follow this format precisely. Do not deviate from it in any way.\n"
+                        "Finally, at the end of the message, provide **ONLY** the list of medicines that are available from the provided list, in the following format:\n"
+                        "['medicine1', 'medicine2', 'medicine3', ...]\n"
+                        "This **list** must appear **only at the very end** of your response."
+            },
+            { "role": "user", "content": "My leg really really hurts and I need urgent help." }
         ]
 
     # Makes a call to the OpenRouter API to get a response based on the provided message
     # The get_completion function is defined in the services.py file and is responsible for interacting with the OpenRouter API
-    answer = get_completion(client, message)
+    answer = get_completion(client, message).choices[0].message.content
 
-    print(answer.choices[0].message.content)
+    print(answer)
 
-    # Return a JSON response with a message indicating the diagnosis has started
-    return jsonify(message="Diagnosis started")
+    try:
+        medicines_suggested = extract_medicines_list(answer)
+    except ValueError as e:
+        print(f"Error: {e}")
+        return jsonify(error="Diagnosis was not succesfully completed.")
+
+    return jsonify(message="Diagnosis completed.\n" + answer, medicines=medicines_suggested)
 
 if __name__ == '__main__':
+
+    """
+    !!! Important information about SQLite3 database accesses !!!
+
+    As Flask works with multiple threads, and Flask does not support SQLite3 database access from multiple threads,
+    it is necessary to create a new connection and cursor inside each function in order to access the SQLite3 database.
+    Once the cursor and connection aren no longer neeeded, they MUST be closed.
+    """
 
     # Set the API key and base URL for the OpenRouter API
     load_dotenv(dotenv_path="./keys.env")
