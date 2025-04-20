@@ -5,7 +5,6 @@ import { Alert, View, Text, Pressable, StyleSheet, Image, ScrollView } from 'rea
 import { sendMessageToRobot, Action2Robot } from '@/services/sendMessage2Robot';
 import { useState } from 'react'
 import { Audio } from 'expo-av';
-import { Buffer } from 'buffer';
 
 type Props = {
   onBack: () => void;
@@ -39,7 +38,7 @@ export default function AskMedicineScreen({ onBack }: Props) {
     try {
       if (permissionResponse?.status !== 'granted') {
         console.log('Requesting permission..');
-        await requestPermission();
+        const newPermission = await requestPermission();
         if (newPermission.status !== 'granted') {
             console.warn('Permission not granted');
             return;
