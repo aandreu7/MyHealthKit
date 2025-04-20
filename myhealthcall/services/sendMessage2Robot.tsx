@@ -3,7 +3,9 @@
 
 import * as FileSystem from 'expo-file-system';
 
+//export const ROBOT_IP = 'https://192.168.1.167:5000';
 export const ROBOT_IP = 'http://192.168.1.167:5000';
+//export const ROBOT_IP = 'https://myhealthcontroller.duckdns.org';
 
 export const enum Action2Robot {
     StartDiagnosis = 'start-diagnosis',
@@ -11,26 +13,19 @@ export const enum Action2Robot {
     AddMedicine = 'add-medicine',
 }
 
-const fetchWithTimeout = (url: string, options: RequestInit, timeout: number) => {
-    return new Promise<Response>(async (resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('Request timed out')), timeout);
-      try {
-        const response = await fetch(url, options);
-        clearTimeout(timer);
-        resolve(response);
-      } catch (error) {
-        clearTimeout(timer);
-        reject(error);
-      }
+const fetchWithTimeout = (url: string, options: RequestInit, timeout: number = 3000): Promise<Response> => {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+
+    return fetch(url, options).finally(() => clearTimeout(id)).catch((error) => {
+        console.error("Error sending ping:", error); throw error;
     });
 };
 
 export const sendMessageToRobot = async (action: Action2Robot, message?: string, uri?: string): Promise<{ success: boolean, error?: string, message?: string, medicines?: string[] }> => {
     try {
+        const ping = await fetchWithTimeout(ROBOT_IP, {});
 
-        const pingTimeout = 3000; // 3 seconds timeout
-        const ping = await fetchWithTimeout(ROBOT_IP, {}, pingTimeout);
-        
         if (ping.ok) {
             let url: string = `${ROBOT_IP}`;
             switch (action) {
