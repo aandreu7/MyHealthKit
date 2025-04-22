@@ -1,14 +1,194 @@
 import re
+import subprocess
+import wave
+import json
+from vosk import Model, KaldiRecognizer
+import io
+import os
+from together import Together
 
-def get_completion(client, message, temperature=0.2, max_tokens=150):
-    return client.chat.completions.create(
-        extra_body={
-            "temperature": temperature, # Controlls model creativity.
-            "max_tokens": max_tokens # Output length in tokens.
-        },
-        model="nvidia/llama-3.3-nemotron-super-49b-v1:free",
-        messages=message
+import edge_tts
+import pygame
+
+def play_mp3(filename):
+    """
+    Plays the provided MP3 file using pygame.
+    """
+    pygame.mixer.init()
+    pygame.mixer.music.load(filename)
+    pygame.mixer.music.play()
+    while pygame.mixer.music.get_busy():
+        pygame.time.Clock().tick(10)
+    pygame.mixer.music.stop()
+
+def format_human_readable(text: str) -> str:
+    """
+    Cleans the text for TTS/User (human-readable) by removing unnecessary lines and formatting it for better speech synthesis.
+    """
+    # Remove the last line (the list of medicines)
+    lines = text.strip().splitlines()
+    if lines and lines[-1].startswith("[") and lines[-1].endswith("]"):
+        text = "\n".join(lines[:-1])
+    
+    # Remove leading dashes and spaces from each line
+    lines = text.strip().splitlines()
+    clean_lines = [line.lstrip("- ").strip() for line in lines if line.strip()]
+    return " ".join(clean_lines)
+
+def speak(text, language = "en-US"):
+    """
+    Converts the provided text into speech using Edge TTS.
+    """
+    print("Text to be spoken:", text)
+
+    voice = "en-US-JennyNeural" if language == "en-US" else "es-ES-ElviraNeural"
+
+    audio_path = "diagnosis-output.mp3"
+
+    # Communicates with Edge TTS as a subprocess
+    command = [
+        "edge-tts",
+        "--text", text,
+        "--write-media", audio_path,
+        "--voice", voice,
+    ]
+
+    # Execute the command to generate the MP3
+    subprocess.run(command, check=True)
+
+    # Play the generated audio file
+    play_mp3("diagnosis-output.mp3")
+
+
+def transcribe_audio(file, *, model=None, language="en-US") -> str:
+    """
+    Transcribes the audio file into text using Vosk speech recognition.
+    """
+
+    # Loads Vosk model for selected language
+    if model is None:
+        if language == "en-US":
+            model = Model("./vosk-models/vosk-model-en-us-0.22")
+        elif language == "es-ES":
+            model = Model("./vosk-models/vosk-model-es-0.42")
+        else:
+            raise ValueError("Unsupported language. Supported languages are 'en-US' and 'es-ES'.")
+
+    # Converts M4A file to WAV (PCM 16-bit mono) using ffmpeg
+    # Reads Blob directly and passes it to ffmpeg by stdin
+    ffmpeg = subprocess.Popen(
+        ['ffmpeg', '-i', 'pipe:0', '-f', 'wav', '-acodec', 'pcm_s16le', '-ar', '16000', '-ac', '1', 'pipe:1'],
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
     )
+
+    # Rewinds file pointer to the beginning (always necessary after file.read())
+    file.seek(0)
+
+    # file.read() = original m4a audio bytes
+    wav_bytes, _ = ffmpeg.communicate(file.read())
+
+    file.seek(0)
+
+    """
+    with open("output.wav", "wb") as f:
+        f.write(wav_bytes)
+    file.seek(0)
+    """
+
+    # Processes WAV audio with Vosk
+    rec = KaldiRecognizer(model, 16000)
+
+    result_text = ""
+
+    # Vosk works with small audio pieces, so we simulate that by reading the WAV file in chunks of 4000 frames
+    buffer = io.BytesIO(wav_bytes)
+    with wave.open(buffer, 'rb') as wf:
+        while True:
+            data = wf.readframes(4000)
+            if len(data) == 0:
+                break
+            if rec.AcceptWaveform(data):
+                res = json.loads(rec.Result())
+                result_text += res.get("text", "") + " "
+
+        final_res = json.loads(rec.FinalResult())
+        result_text += final_res.get("text", "")
+
+    return result_text.strip()
+
+def get_completion(client, message, temperature=0.2, max_tokens=300):
+    """
+    Makes calls to the OpenRouter API to get a response based on the provided message.
+    """
+
+    def evaluate_LLM_response(answer):
+        """
+        Evaluates the response from the LLM to ensure it is valid and contains the expected structure.
+        """
+
+        if not answer:
+            return False
+
+        if hasattr(answer, "error") and answer.error:
+            if answer.error.get("code") == 429:
+                print("Usage time exceeded.")
+            return False
+
+        if not hasattr(answer, "choices") or not answer.choices:
+            return False
+
+        first_choice = answer.choices[0]
+        if not hasattr(first_choice, "message") or not hasattr(first_choice.message, "content"):
+            return False
+
+        return True
+
+    def call_LLM(model_name: str, defaultOption=True):
+        """
+        Calls the LLM with the provided model name.
+        """
+        if defaultOption: # OpenRouter models
+            return client.chat.completions.create(
+                extra_body={
+                    "temperature": temperature, # Controlls model creativity.
+                    "max_tokens": max_tokens # Output length in tokens.
+                },
+                model=model_name,
+                messages=message
+            )
+        else: # Together.ai models
+            clientTogether = Together()
+            return clientTogether.chat.completions.create(
+                temperature=temperature,
+                max_tokens=max_tokens,
+                model=model_name,
+                messages=message,
+            )
+        
+    try:
+
+        # First chance at Google Gemini (OpenRouter)
+        answer = call_LLM("google/gemini-2.0-flash-exp:free")
+
+        if evaluate_LLM_response(answer):
+            return answer
+        
+        # Second chance at Nvidia/Meta Llama 3.3 (OpenRouter)
+        answer = call_LLM("nvidia/llama-3.3-nemotron-super-49b-v1:free")
+
+        if evaluate_LLM_response(answer):
+            return answer
+        
+        # Third chance at Meta Llama 3.3 (Together.ai)
+        answer = call_LLM("meta-llama/Llama-3.3-70B-Instruct-Turbo-Free", False)
+        
+        if evaluate_LLM_response(answer):
+            return answer
+
+        raise RuntimeError("No valid response from any LLM.")
+
+    except Exception as e:
+        raise RuntimeError(f"Error during LLM call: {e}")
 
 def extract_medicines_list(answer):
     """
