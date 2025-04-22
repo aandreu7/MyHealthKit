@@ -1,4 +1,6 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
+from flask_cors import CORS
+
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -32,14 +34,34 @@ and the function defined under it (start_diagnosis) is executed.
 # Route for the main page (GET request)
 @app.route('/')
 def index():
-    # Return a JSON response with a status of "OK"
+    # Returns a JSON response with a status of "OK"
     return jsonify(status="OK")
 
 # Route to start a diagnosis (POST request)
 @app.route('/start-diagnosis', methods=['POST'])
 def start_diagnosis():
-    # Print a message to the console indicating the diagnosis is starting
+    # Prints a message to the console indicating the diagnosis is starting
     print("Starting diagnosis on MyHealthKit...")
+
+    # Obtains message's body from the request
+    if 'file' not in request.files:
+        return "No file (pacient's audio) part", 400
+    file = request.files['file']
+
+    if file.filename == '':
+        return "File has no name or is void", 400
+
+    # Saves the audio file to the current working directory with the name "last_request"
+    filename = file.filename
+    _, ext = os.path.splitext(filename)
+    save_path = os.path.join(os.getcwd(), f"last_request{ext}")
+    file.save(save_path)
+    print("File saved")
+
+    # Transcribes the audio file into text using the transcribe_audio function defined in the services.py file
+    transcribed_text = transcribe_audio(file, model=model)
+
+    print(transcribed_text)
 
     # Create a new connection and cursor inside the function
     conn = sqlite3.connect("../database/pharmacy.db")
@@ -67,20 +89,29 @@ def start_diagnosis():
                         "['medicine1', 'medicine2', 'medicine3', ...]\n"
                         "This **list** must appear **only at the very end** of your response."
             },
-            { "role": "user", "content": "My leg really really hurts and I need urgent help." }
-        ]
+            { "role": "user", "content": transcribed_text }
+    ]
 
     # Makes a call to the OpenRouter API to get a response based on the provided message
     # The get_completion function is defined in the services.py file and is responsible for interacting with the OpenRouter API
     answer = get_completion(client, message).choices[0].message.content
 
-    print(answer)
-
     try:
         medicines_suggested = extract_medicines_list(answer)
+        answer = format_human_readable(answer) # Cleans the text in order to be properly shown to the user
+        print("Medicines suggested: ", medicines_suggested)
+        speak(answer)  # Reads (verbally) the diagnosis using the TTS function defined in the services.py file
     except ValueError as e:
         print(f"Error: {e}")
         return jsonify(error="Diagnosis was not succesfully completed.")
+
+    """
+    # Remove the existing audios
+    if os.path.exists("diagnosis-output.mp3"):
+        os.remove("diagnosis-output.mp3")
+    if os.path.exists("last_request.m4a"):
+        os.remove("last_request.m4a")
+    """
 
     return jsonify(message="Diagnosis completed.\n" + answer, medicines=medicines_suggested)
 
@@ -94,6 +125,11 @@ if __name__ == '__main__':
     Once the cursor and connection aren no longer neeeded, they MUST be closed.
     """
 
+    # Loads Vosk model
+    #model = Model("./vosk-models/vosk-model-en-us-0.22") # English
+    #model = Model("./vosk-models/vosk-model-en-us-0.22-lgraph") # English (light)
+    model = Model("./vosk-models/vosk-model-es-0.42") # Spanish
+
     # Set the API key and base URL for the OpenRouter API
     load_dotenv(dotenv_path="./keys.env")
     client = OpenAI(
@@ -101,5 +137,11 @@ if __name__ == '__main__':
         api_key=os.getenv("OPENROUTER_API_KEY")
     )
 
-    # Run the Flask application. Start the app, making it listen on all network interfaces (0.0.0.0) and port 5000
-    app.run(host='0.0.0.0', port=5000)
+    # Enables Cross Origin Resource Sharing (CORS) for the Flask app
+    # This allows the app to accept requests from different origins, which is useful for development and API usage
+    # In production, it is recommended to restrict CORS to specific origins for security reasons
+    #CORS(app)
+
+    # Runs the Flask application. Start the app, making it listen on all network interfaces (0.0.0.0) and port 5000
+    app.run(host='0.0.0.0', port=5000) # HTTP
+    #app.run(host='0.0.0.0', port=5000, ssl_context=('./certificates/localhost+3.pem', './certificates/localhost+3-key.pem')) # HTTPS
