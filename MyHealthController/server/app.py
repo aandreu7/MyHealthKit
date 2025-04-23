@@ -59,7 +59,7 @@ def start_diagnosis():
     print("File saved")
 
     # Transcribes the audio file into text using the transcribe_audio function defined in the services.py file
-    transcribed_text = transcribe_audio(file, model=model)
+    transcribed_text = transcribe_audio(file, model=model, language=definedLanguage)
 
     print(transcribed_text)
 
@@ -87,7 +87,8 @@ def start_diagnosis():
                         "Be sure to follow this format precisely. Do not deviate from it in any way.\n"
                         "Finally, at the end of the message, provide **ONLY** the list of medicines that are available from the provided list, in the following format:\n"
                         "['medicine1', 'medicine2', 'medicine3', ...]\n"
-                        "This **list** must appear **only at the very end** of your response."
+                        "This **list** must appear **only at the very end** of your response. If list is void, provide [] at **at the very end**.\n"
+                        "Respond in the following language: " + definedLanguage
             },
             { "role": "user", "content": transcribed_text }
     ]
@@ -100,7 +101,7 @@ def start_diagnosis():
         medicines_suggested = extract_medicines_list(answer)
         answer = format_human_readable(answer) # Cleans the text in order to be properly shown to the user
         print("Medicines suggested: ", medicines_suggested)
-        speak(answer)  # Reads (verbally) the diagnosis using the TTS function defined in the services.py file
+        speak(answer, definedLanguage)  # Reads (verbally) the diagnosis using the TTS function defined in the services.py file
     except ValueError as e:
         print(f"Error: {e}")
         return jsonify(error="Diagnosis was not succesfully completed.")
@@ -125,10 +126,16 @@ if __name__ == '__main__':
     Once the cursor and connection aren no longer neeeded, they MUST be closed.
     """
 
+    definedLanguage = "es-ES"
+
     # Loads Vosk model
-    #model = Model("./vosk-models/vosk-model-en-us-0.22") # English
-    #model = Model("./vosk-models/vosk-model-en-us-0.22-lgraph") # English (light)
-    model = Model("./vosk-models/vosk-model-es-0.42") # Spanish
+    if definedLanguage == "en-US":
+        model = Model("./vosk-models/vosk-model-en-us-0.22") # English
+        #model = Model("./vosk-models/vosk-model-en-us-0.22-lgraph") # English (light)
+    elif definedLanguage == "es-ES":
+        model = Model("./vosk-models/vosk-model-es-0.42") # Spanish
+    else:
+        raise ValueError("Invalid language")
 
     # Set the API key and base URL for the OpenRouter API
     load_dotenv(dotenv_path="./keys.env")

@@ -9,6 +9,7 @@ from together import Together
 
 import edge_tts
 import pygame
+import asyncio
 
 def play_mp3(filename):
     """
@@ -20,6 +21,7 @@ def play_mp3(filename):
     while pygame.mixer.music.get_busy():
         pygame.time.Clock().tick(10)
     pygame.mixer.music.stop()
+    pygame.mixer.quit() # Frees file
 
 def format_human_readable(text: str) -> str:
     """
@@ -45,6 +47,14 @@ def speak(text, language = "en-US"):
 
     audio_path = "diagnosis-output.mp3"
 
+
+    async def generate_audio():
+        communicate = edge_tts.Communicate(text, voice)
+        await communicate.save(audio_path)
+
+    asyncio.run(generate_audio())
+
+    """
     # Communicates with Edge TTS as a subprocess
     command = [
         "edge-tts",
@@ -55,6 +65,7 @@ def speak(text, language = "en-US"):
 
     # Execute the command to generate the MP3
     subprocess.run(command, check=True)
+    """
 
     # Play the generated audio file
     play_mp3("diagnosis-output.mp3")
