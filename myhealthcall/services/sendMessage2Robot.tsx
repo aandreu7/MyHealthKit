@@ -3,8 +3,8 @@
 
 import * as FileSystem from 'expo-file-system';
 
-//export const ROBOT_IP = 'https://192.168.1.167:5000';
-export const ROBOT_IP = 'http://172.20.10.10:5000';
+export const ROBOT_IP = 'https://192.168.1.167:5000';
+//export const ROBOT_IP = 'http://172.20.10.10:5000';
 //export const ROBOT_IP = 'https://myhealthcontroller.duckdns.org';
 
 export const enum Action2Robot {
@@ -15,11 +15,23 @@ export const enum Action2Robot {
 
 const fetchWithTimeout = (url: string, options: RequestInit, timeout: number = 3000): Promise<Response> => {
     const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
+    const signal = controller.signal;
 
-    return fetch(url, options).finally(() => clearTimeout(id)).catch((error) => {
-        console.error("Error sending ping:", error); throw error;
-    });
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    return fetch(url, { ...options, signal })
+        .then((response) => response)
+        .catch((error) => {
+            if (error.name === 'AbortError') {
+                console.error(`Request timed out: ${timeout} ms`);
+            } else if (error.message.includes("Network request timed out")) {
+                console.error("Network request timed out - Server likely unreachable.");
+            } else {
+                console.error('Request failed:', error);
+            }
+            throw error;
+        })
+        .finally(() => clearTimeout(timeoutId));
 };
 
 export const sendMessageToRobot = async (action: Action2Robot, message?: string, uri?: string): Promise<{ success: boolean, error?: string, message?: string, medicines?: string[] }> => {
