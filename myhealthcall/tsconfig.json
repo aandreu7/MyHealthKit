@@ -8,6 +8,7 @@
       "@assets/*": ["./assets/*"],
       "@components/*": ["./components/*"],
       "@services/*": ["./services/*"],
+      "@hooks/*": ["./hooks/*"],
       "@/*": ["./*"]
     }
   },

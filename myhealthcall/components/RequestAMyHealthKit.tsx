@@ -4,7 +4,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Alert, View, Text, Pressable, StyleSheet, Image, ScrollView, Button } from 'react-native';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
-import { styles } from '@/app/index'
+import { styles } from '@hooks/styles'
 
 type Props = {
   onBack: () => void;
