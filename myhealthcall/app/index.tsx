@@ -1,3 +1,4 @@
+import * as FileSystem from 'expo-file-system';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { useRef, useState } from 'react';
 import { Alert, Button, StyleSheet, Pressable, Text, View, Image } from 'react-native';
@@ -6,6 +7,7 @@ import AskMedicineScreen from '@components/AskMedicineScreen';
 export default function App() {
   const [permission, requestPermission] = useCameraPermissions();
   const [cameraVisible, setCameraVisible] = useState(false);
+  const [captureProduct, setCaptureProduct] = useState(false);
   const [screen, setScreen] = useState<'home' | 'askMedicine'>('home');
   const hasScannedRef = useRef(false);
 
@@ -43,8 +45,73 @@ export default function App() {
         barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
         onBarcodeScanned={handleBarCodeScanned}
       />
+      
     );
   }
+
+  const handleCapturePhoto = async () => {
+    try {
+      // Aquí puedes poner tu lógica para llamar al servicio
+      // por ejemplo, enviar una petición POST con datos del producto:
+      const resp = await fetch('https://tu-backend.com/add-producto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          // si tuvieras un código escaneado:
+          // code: lastScannedCode,
+        }),
+      });
+      if (!resp.ok) throw new Error(`Status ${resp.status}`);
+      Alert.alert('Éxito', 'Producto añadido correctamente');
+      setCaptureProduct(false);  // volver atrás
+    } catch (err: any) {
+      console.error('Error al añadir producto:', err);
+      Alert.alert('Error', err.message || 'No se pudo añadir el producto');
+    }
+  };
+
+  if (captureProduct) {
+    return (
+      <View style={{ flex: 1 }}>
+        <CameraView
+          style={{ flex: 1 }}
+          facing="back"
+          barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+          onBarcodeScanned={handleBarCodeScanned}
+        />
+  
+        {}
+        <Pressable
+          onPress={handleCapturePhoto}
+          style={[
+            styles.customButton,
+            {
+              position: 'absolute',
+              bottom: 40,
+              alignSelf: 'center',
+            },
+          ]}
+        >
+          <Text style={styles.buttonText}>📸 Capturar</Text>
+        </Pressable>
+  
+        {}
+        <Pressable
+          onPress={() => setCaptureProduct(false)}
+          style={[
+            styles.customButton,
+            {
+              position: 'absolute',
+              bottom: 40,
+              left: 20,
+            },
+          ]}
+        >
+          <Text style={styles.buttonText}>← Return</Text>
+        </Pressable>
+      </View>
+    );
+  }  
 
   let content;
 
@@ -65,7 +132,7 @@ export default function App() {
               <Text style={styles.buttonText}>Ask for a medicine</Text>
             </Pressable>
   
-            <Pressable style={styles.customButton} onPress={() => {}}>
+            <Pressable style={styles.customButton} onPress={() => setCaptureProduct(true)}>
               <Text style={styles.buttonText}>Add a medicine</Text>
             </Pressable>
           </View>
