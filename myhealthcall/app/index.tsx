@@ -1,50 +1,11 @@
-import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { useRef, useState } from 'react';
 import { Alert, Button, StyleSheet, Pressable, Text, View, Image } from 'react-native';
 import AskMedicineScreen from '@components/AskMedicineScreen';
+import RequestAMyHealthKitScreen from '@components/RequestAMyHealthKit';
 
 export default function App() {
-  const [permission, requestPermission] = useCameraPermissions();
-  const [cameraVisible, setCameraVisible] = useState(false);
-  const [screen, setScreen] = useState<'home' | 'askMedicine'>('home');
+  const [screen, setScreen] = useState<'home' | 'askMedicine' | 'requestAMyHealthKit'>('home');
   const hasScannedRef = useRef(false);
-
-
-  if (!permission) return <View />;
-  if (!permission.granted) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.container}>We need your permission to show the camera</Text>
-        <Button onPress={requestPermission} title="Grant permission" />
-      </View>
-    );
-  }
-
-  const handleBarCodeScanned = (scanningResult: BarcodeScanningResult) => {
-    if (!hasScannedRef.current) {
-      hasScannedRef.current = true; // Evita múltiples llamadas
-      Alert.alert('A MyHealthKit is on its way.', '', [
-        {
-          text: 'OK',
-          onPress: () => {
-            setCameraVisible(false);
-            hasScannedRef.current = false; // Lo reseteamos para volver a escanear más tarde
-          },
-        },
-      ]);
-    }
-  };
-  
-  if (cameraVisible) {
-    return (
-      <CameraView
-        style={{ flex: 1 }}
-        facing="back"
-        barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-        onBarcodeScanned={handleBarCodeScanned}
-      />
-    );
-  }
 
   let content;
 
@@ -57,7 +18,7 @@ export default function App() {
             style={styles.image}
           />
           <View style={styles.buttonContainer}>
-            <Pressable style={styles.customButton} onPress={() => setCameraVisible(true)}>
+            <Pressable style={styles.customButton} onPress={() => setScreen('requestAMyHealthKit')}>
               <Text style={styles.buttonText}>Request a MyHealthKit</Text>
             </Pressable>
   
@@ -72,6 +33,10 @@ export default function App() {
         </View>
       );
       break;
+
+    case 'requestAMyHealthKit':
+        content = <RequestAMyHealthKitScreen onBack={() => setScreen('home')} />;
+        break;
   
     case 'askMedicine':
       content = <AskMedicineScreen onBack={() => setScreen('home')} />;
@@ -88,7 +53,7 @@ export default function App() {
   return <View style={{ flex: 1 }}>{content}</View>;
 }  
 
-const styles = StyleSheet.create({
+export const styles = StyleSheet.create({
   image: {
     width: 200,
     height: 200,

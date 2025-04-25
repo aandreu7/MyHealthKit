@@ -4,7 +4,7 @@
 import * as FileSystem from 'expo-file-system';
 
 //export const ROBOT_IP = 'https://192.168.1.167:5000';
-export const ROBOT_IP = 'http://192.168.1.167:5000';
+export const ROBOT_IP = 'http://172.20.10.10:5000';
 //export const ROBOT_IP = 'https://myhealthcontroller.duckdns.org';
 
 export const enum Action2Robot {

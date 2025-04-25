@@ -152,7 +152,7 @@ export default function AskMedicineScreen({ onBack }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+export const styles = StyleSheet.create({
   image: {
     width: 200,
     height: 200,
