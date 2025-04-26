@@ -1,6 +1,5 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -30,12 +29,63 @@ Flask app instance catches it using the following Python decorator:
 
 and the function defined under it (start_diagnosis) is executed.
 """
-
 # Route for the main page (GET request)
 @app.route('/')
 def index():
     # Returns a JSON response with a status of "OK"
     return jsonify(status="OK")
+
+@app.route('/add-medicine', methods=['POST'])
+def add_medicine():
+    print("Adding a new medicine to MyHealthKit...")
+
+    file = request.files['file']
+
+    filename = file.filename
+    _, ext = os.path.splitext(filename)
+    save_path = os.path.join(os.getcwd(), f"new_medicine{ext}")
+    file.save(save_path)
+    print(f"Medicine photo saved at {save_path}")
+
+    try:
+        # Llamar a OCR.Space para hacer el OCR
+        resize_image_if_needed(save_path)
+        extracted_text = ocr_space_file(save_path, "K85306455988957")
+        print(f"OCR extracted text: {extracted_text}")
+
+        if extracted_text.strip():
+            # Crear el mensaje para get_completion
+            message = [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": (
+                                f"I scanned a real medicine box and these are the detected words: \"{extracted_text.strip()}\".\n"
+                                "IMPORTANT: Ignore any brand names you detect (like Numark, Boots, Bayer, etc.). "
+                                "Focus ONLY on the name of the active drug or medicine (such as Ibuprofen, Amoxicillin, Paracetamol, etc.). "
+                                "The product name must correspond to the drug itself, NOT the manufacturer or pharmacy brand. "
+                                "Return ONLY the real name of the medicine, without dosage, format or extra information."
+                            )
+                        }
+                    ]
+                }
+            ]
+
+            # Llamada a get_completion
+            answer = get_completion(client, message).choices[0].message.content.strip()
+            print("Detected medicine name:", answer)
+
+            return jsonify(message=f"Medicine '{answer}' has been successfully added.")
+
+        else:
+            raise ValueError("OCR could not detect text properly.")
+
+    except Exception as e:
+        print(f"Error processing medicine image: {e}")
+        return jsonify(error=f"Failed to add medicine due to: {str(e)}"), 500
+
 
 # Route to start a diagnosis (POST request)
 @app.route('/start-diagnosis', methods=['POST'])
@@ -126,12 +176,12 @@ if __name__ == '__main__':
     Once the cursor and connection aren no longer neeeded, they MUST be closed.
     """
 
-    definedLanguage = "es-ES"
+    definedLanguage = "en-US"
 
     # Loads Vosk model
     if definedLanguage == "en-US":
-        model = Model("./vosk-models/vosk-model-en-us-0.22") # English
-        #model = Model("./vosk-models/vosk-model-en-us-0.22-lgraph") # English (light)
+        #model = Model("./vosk-models/vosk-model-en-us-0.22") # English
+        model = Model("./vosk-models/vosk-model-en-us-0.22-lgraph") # English (light)
     elif definedLanguage == "es-ES":
         model = Model("./vosk-models/vosk-model-es-0.42") # Spanish
     else:

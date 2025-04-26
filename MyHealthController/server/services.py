@@ -1,15 +1,62 @@
 import re
 import subprocess
 import wave
+from PIL import Image
 import json
 from vosk import Model, KaldiRecognizer
 import io
 import os
+import requests
 from together import Together
-
 import edge_tts
 import pygame
 import asyncio
+
+def ocr_space_file(filename, api_key):
+    """Enviar imagen a OCR.Space API y devolver el texto detectado"""
+    payload = {
+        'isOverlayRequired': False,
+        'apikey': api_key,
+        'language': 'eng',
+    }
+    with open(filename, 'rb') as f:
+        response = requests.post(
+            'https://api.ocr.space/parse/image',
+            files={filename: f},
+            data=payload,
+        )
+    try:
+        result = response.json()
+    except Exception as e:
+        print(f"Error parsing OCR.Space response as JSON: {e}")
+        print("OCR.Space raw response text:", response.text)
+        raise e
+
+    print("OCR.Space result:", result)  # 👈 Ver qué devuelve la API
+
+    if isinstance(result, dict) and result.get('ParsedResults'):
+        return result['ParsedResults'][0]['ParsedText']
+    else:
+        raise ValueError(f"OCR failed or bad API response: {result}")
+
+def resize_image_if_needed(image_path, max_size_kb=1024):
+    """Reduce la imagen si es más grande de lo permitido (OCR.Space = 1MB)"""
+    max_size_bytes = max_size_kb * 1024
+    img = Image.open(image_path)
+
+    # Guardamos en calidad 85% para reducir peso
+    img.save(image_path, optimize=True, quality=85)
+
+    # Verificar tamaño
+    if os.path.getsize(image_path) > max_size_bytes:
+        print("Image still too big after compression. Trying to resize...")
+        width, height = img.size
+        new_width = width // 2
+        new_height = height // 2
+        img = img.resize((new_width, new_height), Image.ANTIALIAS)
+        img.save(image_path, optimize=True, quality=85)
+    
+    print(f"Final image size: {os.path.getsize(image_path) / 1024:.2f} KB")
 
 def play_mp3(filename):
     """

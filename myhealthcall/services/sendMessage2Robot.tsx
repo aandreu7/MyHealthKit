@@ -1,11 +1,8 @@
 // services/recordVoice.tsx
-// @aandreu7
 
 import * as FileSystem from 'expo-file-system';
 
-export const ROBOT_IP = 'https://192.168.1.167:5000';
-//export const ROBOT_IP = 'http://172.20.10.10:5000';
-//export const ROBOT_IP = 'https://myhealthcontroller.duckdns.org';
+export const ROBOT_IP = 'http://192.168.1.135:5000';
 
 export const enum Action2Robot {
     StartDiagnosis = 'start-diagnosis',
@@ -16,7 +13,6 @@ export const enum Action2Robot {
 const fetchWithTimeout = (url: string, options: RequestInit, timeout: number = 3000): Promise<Response> => {
     const controller = new AbortController();
     const signal = controller.signal;
-
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     return fetch(url, { ...options, signal })
@@ -42,38 +38,43 @@ export const sendMessageToRobot = async (action: Action2Robot, message?: string,
             let url: string = `${ROBOT_IP}`;
             switch (action) {
                 case 'start-diagnosis':
-                url = url + `/start-diagnosis`;
-                break;
+                    url += `/start-diagnosis`;
+                    break;
                 case 'ask-medicine':
-                url = url + `/ask-medicine`;
-                break;
+                    url += `/ask-medicine`;
+                    break;
                 case 'add-medicine':
-                url = url + `/add-medicine`;
-                break;
+                    url += `/add-medicine`;
+                    break;
                 default:
-                return { success: false, error: 'Unknown action.' };
+                    return { success: false, error: 'Unknown action.' };
             }
 
             let response;
 
-            if (uri) { // PREBUILT MESSAGE
+            if (uri) {
                 try {
-                     if (action == 'start-diagnosis') {
-                         response = await FileSystem.uploadAsync(url, uri!, {
-                           fieldName: 'file',
-                           httpMethod: 'POST',
-                           uploadType: FileSystem.FileSystemUploadType.MULTIPART,
-                           mimeType: 'audio/m4a',
-                           parameters: {
-                           },
-                         });
-                     }
-                 } catch(error) {
-                     console.log("Error uploading file:", error);
-                 }
-            }
-
-            else { // MESSAGE TO BE BUILT
+                    if (action === 'start-diagnosis') {
+                        response = await FileSystem.uploadAsync(url, uri, {
+                            fieldName: 'file',
+                            httpMethod: 'POST',
+                            uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+                            mimeType: 'audio/m4a',
+                            parameters: {},
+                        });
+                    } else if (action === 'add-medicine') {
+                        response = await FileSystem.uploadAsync(url, uri, {
+                            fieldName: 'file',
+                            httpMethod: 'POST',
+                            uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+                            mimeType: 'image/jpeg', 
+                            parameters: {},
+                        });
+                    }
+                } catch (error) {
+                    console.log("Error uploading file:", error);
+                }
+            } else {
                 const headers: HeadersInit = {
                     'Content-Type': 'application/json',
                 };
@@ -97,9 +98,9 @@ export const sendMessageToRobot = async (action: Action2Robot, message?: string,
 
                 try {
                     if (typeof response.json === 'function') {
-                      dataAnswer = await response.json();
+                        dataAnswer = await response.json();
                     } else if (response.body) {
-                      dataAnswer = JSON.parse(response.body);
+                        dataAnswer = JSON.parse(response.body);
                     }
                 } catch (error) {
                     console.log("Error parsing server's response:", error);
@@ -107,19 +108,22 @@ export const sendMessageToRobot = async (action: Action2Robot, message?: string,
 
                 switch (action) {
                     case 'start-diagnosis':
-                    return {
-                        success: true,
-                        message: dataAnswer.message,
-                        medicines: dataAnswer.medicines
-                    };
-                    break;
+                        return {
+                            success: true,
+                            message: dataAnswer.message,
+                            medicines: dataAnswer.medicines
+                        };
+                    case 'add-medicine':
+                        return {
+                            success: true,
+                            message: dataAnswer.message
+                        };
                 }
-            }
-            else {
+            } else {
                 return { success: false, error: 'Error at the answer.' };
             }
         } else {
-        return { success: false, error: 'MyHealthKit is not reachable or responded with an error (ping did not reach).' };
+            return { success: false, error: 'MyHealthKit is not reachable or responded with an error (ping did not reach).' };
         }
     } catch (error) {
         return { success: false, error: 'Connection could not be established.' };

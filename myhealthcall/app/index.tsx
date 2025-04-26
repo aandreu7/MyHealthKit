@@ -2,10 +2,11 @@ import { useRef, useState } from 'react';
 import { Alert, Button, Pressable, Text, View, Image } from 'react-native';
 import AskMedicineScreen from '@components/AskMedicineScreen';
 import RequestAMyHealthKitScreen from '@components/RequestAMyHealthKit';
+import AddMedicine from '@components/AddMedicine';
 import { styles } from '@hooks/styles';
 
 export default function App() {
-  const [screen, setScreen] = useState<'home' | 'askMedicine' | 'requestAMyHealthKit'>('home');
+  const [screen, setScreen] = useState<'home' | 'askMedicine' | 'addMedicine' | 'requestAMyHealthKit'>('home');
   const hasScannedRef = useRef(false);
 
   let content;
@@ -27,7 +28,7 @@ export default function App() {
               <Text style={styles.buttonText}>Ask for a medicine</Text>
             </Pressable>
   
-            <Pressable style={styles.customButton} onPress={() => {}}>
+            <Pressable style={styles.customButton} onPress={() => setScreen('addMedicine')}>
               <Text style={styles.buttonText}>Add a medicine</Text>
             </Pressable>
           </View>
@@ -41,6 +42,10 @@ export default function App() {
   
     case 'askMedicine':
       content = <AskMedicineScreen onBack={() => setScreen('home')} />;
+      break;
+
+    case 'addMedicine':
+      content = <AddMedicine onBack={() => setScreen('home')} />;
       break;
   
     default:
