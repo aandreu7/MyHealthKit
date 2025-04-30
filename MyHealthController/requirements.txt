@@ -6,3 +6,4 @@ vosk
 together
 edge-tts
 pygame
+together

@@ -12,11 +12,13 @@ import edge_tts
 import pygame
 import asyncio
 
-def ocr_space_file(filename, api_key):
-    """Enviar imagen a OCR.Space API y devolver el texto detectado"""
+def ocr_space_file(filename):
+    """
+    Sends image to OCR.Space API and returns detected text.
+    """
     payload = {
         'isOverlayRequired': False,
-        'apikey': api_key,
+        'apikey': os.getenv("OCR_SPACE_API_KEY"),
         'language': 'eng',
     }
     with open(filename, 'rb') as f:
@@ -32,7 +34,7 @@ def ocr_space_file(filename, api_key):
         print("OCR.Space raw response text:", response.text)
         raise e
 
-    print("OCR.Space result:", result)  # 👈 Ver qué devuelve la API
+    print("OCR.Space result:", result)
 
     if isinstance(result, dict) and result.get('ParsedResults'):
         return result['ParsedResults'][0]['ParsedText']
@@ -40,14 +42,16 @@ def ocr_space_file(filename, api_key):
         raise ValueError(f"OCR failed or bad API response: {result}")
 
 def resize_image_if_needed(image_path, max_size_kb=1024):
-    """Reduce la imagen si es más grande de lo permitido (OCR.Space = 1MB)"""
+    """
+    Reduces image size in case it is bigger than allowed (OCR.Space = 1MB)
+    """
     max_size_bytes = max_size_kb * 1024
     img = Image.open(image_path)
 
-    # Guardamos en calidad 85% para reducir peso
+    # Keeps in quality 85% so as to reduce size
     img.save(image_path, optimize=True, quality=85)
 
-    # Verificar tamaño
+    # Verifies size
     if os.path.getsize(image_path) > max_size_bytes:
         print("Image still too big after compression. Trying to resize...")
         width, height = img.size
