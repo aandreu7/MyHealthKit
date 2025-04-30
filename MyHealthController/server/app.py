@@ -50,7 +50,7 @@ def add_medicine():
     try:
         # Llamar a OCR.Space para hacer el OCR
         resize_image_if_needed(save_path)
-        extracted_text = ocr_space_file(save_path, "K85306455988957")
+        extracted_text = ocr_space_file(save_path)
         print(f"OCR extracted text: {extracted_text}")
 
         if extracted_text.strip():
