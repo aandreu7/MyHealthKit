@@ -2,11 +2,12 @@ import { useRef, useState } from 'react';
 import { Alert, Button, Pressable, Text, View, Image } from 'react-native';
 import AskMedicineScreen from '@components/AskMedicineScreen';
 import RequestAMyHealthKitScreen from '@components/RequestAMyHealthKit';
+import ShowMedicinesScreen from '@components/ShowMedicinesScreen';
 import AddMedicine from '@components/AddMedicine';
 import { styles } from '@hooks/styles';
 
 export default function App() {
-  const [screen, setScreen] = useState<'home' | 'askMedicine' | 'addMedicine' | 'requestAMyHealthKit'>('home');
+  const [screen, setScreen] = useState<'home' | 'askMedicine' | 'addMedicine' | 'showMedicines' | 'requestAMyHealthKit'>('home');
   const hasScannedRef = useRef(false);
 
   let content;
@@ -47,7 +48,11 @@ export default function App() {
     case 'addMedicine':
       content = <AddMedicine onBack={() => setScreen('home')} />;
       break;
-  
+
+    case 'showMedicines':
+      content = <ShowMedicinesScreen onBack={() => setScreen('home')} />;
+      break;
+
     default:
       content = (
         <View style={styles.container}>

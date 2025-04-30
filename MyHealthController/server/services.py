@@ -11,6 +11,43 @@ from together import Together
 import edge_tts
 import pygame
 import asyncio
+import sqlite3
+
+def release_medicine(medicine_id):
+    pass
+
+def check_existing_medicine(medicine_id) -> bool:
+    # Create a new connection and cursor inside the function
+    conn = sqlite3.connect("../database/pharmacy.db")
+    cursor = conn.cursor()
+
+    sql_statement = "SELECT count(*) FROM MEDICINES m WHERE m.remaining_units>0 AND m.id=?"
+
+    medicineExists = False
+
+    if cursor.execute(sql_statement, (medicine_id)).fetchone()[0] > 0:
+        medicineExists = True
+
+    # Close the cursor and connection once the query is done
+    cursor.close()
+    conn.close()
+
+    return medicineExists
+
+def get_all_medicines() -> list:
+    # Create a new connection and cursor inside the function
+    conn = sqlite3.connect("../database/pharmacy.db")
+    cursor = conn.cursor()
+
+    sql_statement = "SELECT * FROM MEDICINES m WHERE m.remaining_units>0"
+
+    existing_medicines = cursor.execute(sql_statement).fetchall()
+
+    # Close the cursor and connection once the query is done
+    cursor.close()
+    conn.close()
+
+    return existing_medicines
 
 def ocr_space_file(filename):
     """

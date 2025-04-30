@@ -3,7 +3,6 @@ from flask_cors import CORS
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
-import sqlite3
 from services import *
 
 # Create a Flask application instance
@@ -35,6 +34,41 @@ def index():
     # Returns a JSON response with a status of "OK"
     return jsonify(status="OK")
 
+@app.route('/show-medicines')
+def show_medicines():
+    print("Showing existing medicines to the user...")
+    try:
+        # Substracts all medicines from database (getAllMedicines defined in services.py)
+        existing_medicines = [(medicine[1], medicine[0]) for medicine in get_all_medicines()]
+        return jsonify(message="Showing existing medicines. Please select one.\n", medicines=existing_medicines)
+    except Exception as e:
+        print(f"Error showing medicines: {e}")
+        return jsonify(error=f"Failed to show medicines due to: {str(e)}"), 500
+
+@app.route('/select-medicine', methods=['POST'])
+def select_medicine():
+    print("Releasing the selected medicine...")
+    try:
+        # Substracts selected medicine by the user
+        data = request.get_json()
+        medicine_id = data.get('medicine_id')
+
+        # Server validation
+        if not medicine_id:
+            return jsonify(error="Missing 'medicine_id' in request."), 400
+        
+        # Checks if the medicine selected actually exists
+        if (check_existing_medicine(medicine_id)):
+            # Releases the medicine
+            release_medicine(medicine_id)
+            return jsonify(message=f"Medicine '{medicine_id}' released successfully.")
+        else:
+            return jsonify(error="Medicine does not exists."), 404
+        
+    except Exception as e:
+        print(f"Error releasing medicine: {e}")
+        return jsonify(error=f"Failed to release medicine due to: {str(e)}"), 500
+
 @app.route('/add-medicine', methods=['POST'])
 def add_medicine():
     print("Adding a new medicine to MyHealthKit...")
@@ -48,13 +82,13 @@ def add_medicine():
     print(f"Medicine photo saved at {save_path}")
 
     try:
-        # Llamar a OCR.Space para hacer el OCR
+        # Calls OCR.Space in order to carry out the OCR
         resize_image_if_needed(save_path)
         extracted_text = ocr_space_file(save_path)
         print(f"OCR extracted text: {extracted_text}")
 
         if extracted_text.strip():
-            # Crear el mensaje para get_completion
+            # Creates message for get_completion
             message = [
                 {
                     "role": "user",
@@ -73,7 +107,7 @@ def add_medicine():
                 }
             ]
 
-            # Llamada a get_completion
+            # Calls get_completion
             answer = get_completion(client, message).choices[0].message.content.strip()
             print("Detected medicine name:", answer)
 
@@ -113,16 +147,7 @@ def start_diagnosis():
 
     print(transcribed_text)
 
-    # Create a new connection and cursor inside the function
-    conn = sqlite3.connect("../database/pharmacy.db")
-    cursor = conn.cursor()
-
-    sql_statement = "SELECT m.name FROM MEDICINES m WHERE m.remaining_units>0"
-    existing_medicines = [medicine[0] for medicine in cursor.execute(sql_statement).fetchall()]
-
-    # Close the cursor and connection once the query is done
-    cursor.close()
-    conn.close()
+    existing_medicines = [medicine[1] for medicine in get_all_medicines()]
 
     message = [
             {

@@ -125,7 +125,10 @@ export default function AskMedicineScreen({ onBack }: Props) {
           <Text style={styles.buttonText}>{recording ? 'Recording...' : 'Get a diagnosis'}</Text>
         </Pressable>
 
-        <Pressable style={styles.customButton} onPress={() => {}}>
+        <Pressable
+          style={styles.customButton}
+          onPress={() => setScreen('showMedicines')}
+        >
           <Text style={styles.buttonText}>Select a medicine</Text>
         </Pressable>
 

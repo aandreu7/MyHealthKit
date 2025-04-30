@@ -2,12 +2,14 @@
 
 import * as FileSystem from 'expo-file-system';
 
-export const ROBOT_IP = 'http://127.0.0.1:5000';
+export const ROBOT_IP = 'http://10.109.250.74:5000';
 
 export const enum Action2Robot {
     StartDiagnosis = 'start-diagnosis',
     AskMedicine = 'ask-medicine',
     AddMedicine = 'add-medicine',
+    ShowMedicines = 'show-medicines',
+    ReleaseMedicine = 'release-medicine'
 }
 
 const fetchWithTimeout = (url: string, options: RequestInit, timeout: number = 3000): Promise<Response> => {
@@ -30,7 +32,7 @@ const fetchWithTimeout = (url: string, options: RequestInit, timeout: number = 3
         .finally(() => clearTimeout(timeoutId));
 };
 
-export const sendMessageToRobot = async (action: Action2Robot, message?: string, uri?: string): Promise<{ success: boolean, error?: string, message?: string, medicines?: string[] }> => {
+export const sendMessageToRobot = async (action: Action2Robot, message?: string, uri?: string): Promise<{ success: boolean, error?: string, message?: string, medicines?: string[], existing_medicines }> => {
     try {
         const ping = await fetchWithTimeout(ROBOT_IP, {});
 
@@ -52,7 +54,7 @@ export const sendMessageToRobot = async (action: Action2Robot, message?: string,
 
             let response;
 
-            if (uri) {
+            if (uri) { // PREBUILT MESSAGE
                 try {
                     if (action === 'start-diagnosis') {
                         response = await FileSystem.uploadAsync(url, uri, {
@@ -69,6 +71,13 @@ export const sendMessageToRobot = async (action: Action2Robot, message?: string,
                             uploadType: FileSystem.FileSystemUploadType.MULTIPART,
                             mimeType: 'image/jpeg', 
                             parameters: {},
+                        });
+                    } else if (action === 'show-medicines') {
+                        response = await fetch(url, {
+                            method: 'GET',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
                         });
                     }
                 } catch (error) {
@@ -117,6 +126,12 @@ export const sendMessageToRobot = async (action: Action2Robot, message?: string,
                         return {
                             success: true,
                             message: dataAnswer.message
+                        };
+                    case 'show-medicines':
+                        return {
+                            success: true,
+                            message: dataAnswer.message,
+                            medicines: dataAnswer.medicines
                         };
                 }
             } else {
