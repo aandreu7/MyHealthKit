@@ -2,7 +2,7 @@
 
 import * as FileSystem from 'expo-file-system';
 
-export const ROBOT_IP = 'http://192.168.1.135:5000';
+export const ROBOT_IP = 'http://127.0.0.1:5000';
 
 export const enum Action2Robot {
     StartDiagnosis = 'start-diagnosis',

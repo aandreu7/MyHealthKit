@@ -4,6 +4,25 @@
 import { StyleSheet } from 'react-native';
 
 export const styles = StyleSheet.create({
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  controls: {
+    position: 'absolute',
+    bottom: 40,
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-between',
+    paddingHorizontal: 30,
+  },
+  message: {
+    fontSize: 18,
+    textAlign: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 20,
+  },
   image: {
     width: 200,
     height: 200,
