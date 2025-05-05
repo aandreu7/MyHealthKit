@@ -3,7 +3,6 @@ from flask_cors import CORS
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
-import sqlite3
 from services import *
 
 # Create a Flask application instance
@@ -35,12 +34,46 @@ def index():
     # Returns a JSON response with a status of "OK"
     return jsonify(status="OK")
 
+@app.route('/show-medicines', methods=['GET'])
+def show_medicines():
+    print("Request received at /show-medicines")
+    try:
+        existing_medicines = get_all_medicines()  # Llama la función para obtener las medicinas
+        print(f"Existing medicines: {existing_medicines}")
+        return jsonify(message="Showing existing medicines.", medicines=existing_medicines)
+    except Exception as e:
+        print(f"Error showing medicines: {e}")
+        return jsonify(error=f"Failed to show medicines due to: {str(e)}"), 500
+
+@app.route('/select-medicine', methods=['POST'])
+def select_medicine():
+    print("Releasing the selected medicine...")
+    try:
+        # Substracts selected medicine by the user
+        data = request.get_json()
+        medicine_id = data.get('medicine_id')
+
+        # Server validation
+        if not medicine_id:
+            return jsonify(error="Missing 'medicine_id' in request."), 400
+        
+        # Checks if the medicine selected actually exists
+        if (check_existing_medicine(medicine_id)):
+            # Releases the medicine
+            #release_medicine(medicine_id)
+            return jsonify(message=f"Medicine '{medicine_id}' released successfully.")
+        else:
+            return jsonify(error="Medicine does not exists."), 404
+        
+    except Exception as e:
+        print(f"Error releasing medicine: {e}")
+        return jsonify(error=f"Failed to release medicine due to: {str(e)}"), 500
+
 @app.route('/add-medicine', methods=['POST'])
 def add_medicine():
     print("Adding a new medicine to MyHealthKit...")
 
     file = request.files['file']
-
     filename = file.filename
     _, ext = os.path.splitext(filename)
     save_path = os.path.join(os.getcwd(), f"new_medicine{ext}")
@@ -48,13 +81,11 @@ def add_medicine():
     print(f"Medicine photo saved at {save_path}")
 
     try:
-        # Llamar a OCR.Space para hacer el OCR
         resize_image_if_needed(save_path)
         extracted_text = ocr_space_file(save_path)
         print(f"OCR extracted text: {extracted_text}")
 
         if extracted_text.strip():
-            # Crear el mensaje para get_completion
             message = [
                 {
                     "role": "user",
@@ -63,20 +94,20 @@ def add_medicine():
                             "type": "text",
                             "text": (
                                 f"I scanned a real medicine box and these are the detected words: \"{extracted_text.strip()}\".\n"
-                                "IMPORTANT: Ignore any brand names you detect (like Numark, Boots, Bayer, etc.). "
-                                "Focus ONLY on the name of the active drug or medicine (such as Ibuprofen, Amoxicillin, Paracetamol, etc.). "
-                                "The product name must correspond to the drug itself, NOT the manufacturer or pharmacy brand. "
-                                "Return ONLY the real name of the medicine, without dosage, format or extra information."
+                                "IMPORTANT: Ignore brand names (e.g. Numark, Boots, Bayer).\n"
+                                "Return ONLY the real name of the active drug or medicine (e.g. Ibuprofen, Amoxicillin).\n"
+                                "DO NOT include any other information. Your response MUST contain just ONE WORD: the name."
                             )
                         }
                     ]
                 }
             ]
 
-            # Llamada a get_completion
             answer = get_completion(client, message).choices[0].message.content.strip()
+            # If it returns a sentence, we take only the first word
+            answer = answer.split()[0]
+            add_medicine_to_db(answer)
             print("Detected medicine name:", answer)
-
             return jsonify(message=f"Medicine '{answer}' has been successfully added.")
 
         else:
@@ -113,16 +144,7 @@ def start_diagnosis():
 
     print(transcribed_text)
 
-    # Create a new connection and cursor inside the function
-    conn = sqlite3.connect("../database/pharmacy.db")
-    cursor = conn.cursor()
-
-    sql_statement = "SELECT m.name FROM MEDICINES m WHERE m.remaining_units>0"
-    existing_medicines = [medicine[0] for medicine in cursor.execute(sql_statement).fetchall()]
-
-    # Close the cursor and connection once the query is done
-    cursor.close()
-    conn.close()
+    existing_medicines = [medicine[1] for medicine in get_all_medicines()]
 
     message = [
             {
