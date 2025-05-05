@@ -16,6 +16,29 @@ import sqlite3
 def release_medicine(medicine_id):
     pass
 
+#S'ha de modificar, pel moment sols passem el nom a la bd.
+def add_medicine_to_db(name: str):
+    conn = sqlite3.connect("../database/pharmacy.db")
+    cursor = conn.cursor()
+
+    sql = """
+    INSERT INTO medicines (name, description, remaining_units, url_prospect, symptoms, contraindications)
+    VALUES (?, ?, ?, ?, ?, ?)
+    """
+
+    cursor.execute(sql, (
+        name,
+        "",
+        50,  
+        "",  
+        "",  
+        ""   
+    ))
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
 def check_existing_medicine(medicine_id) -> bool:
     # Create a new connection and cursor inside the function
     conn = sqlite3.connect("../database/pharmacy.db")
@@ -35,15 +58,13 @@ def check_existing_medicine(medicine_id) -> bool:
     return medicineExists
 
 def get_all_medicines() -> list:
-    # Create a new connection and cursor inside the function
     conn = sqlite3.connect("../database/pharmacy.db")
     cursor = conn.cursor()
 
-    sql_statement = "SELECT * FROM MEDICINES m WHERE m.remaining_units>0"
+    sql_statement = "SELECT name FROM MEDICINES WHERE remaining_units > 0"
 
-    existing_medicines = cursor.execute(sql_statement).fetchall()
-
-    # Close the cursor and connection once the query is done
+    existing_medicines = [row[0] for row in cursor.execute(sql_statement).fetchall()]
+    print(f"Existing medicines fetched: {existing_medicines}")
     cursor.close()
     conn.close()
 
@@ -94,7 +115,7 @@ def resize_image_if_needed(image_path, max_size_kb=1024):
         width, height = img.size
         new_width = width // 2
         new_height = height // 2
-        img = img.resize((new_width, new_height), Image.ANTIALIAS)
+        img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
         img.save(image_path, optimize=True, quality=85)
     
     print(f"Final image size: {os.path.getsize(image_path) / 1024:.2f} KB")
@@ -265,7 +286,6 @@ def get_completion(client, message, temperature=0.2, max_tokens=300):
             )
         
     try:
-
         # First chance at Google Gemini (OpenRouter)
         answer = call_LLM("google/gemini-2.0-flash-exp:free")
 

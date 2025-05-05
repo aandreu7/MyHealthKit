@@ -34,13 +34,13 @@ def index():
     # Returns a JSON response with a status of "OK"
     return jsonify(status="OK")
 
-@app.route('/show-medicines')
+@app.route('/show-medicines', methods=['GET'])
 def show_medicines():
-    print("Showing existing medicines to the user...")
+    print("Request received at /show-medicines")
     try:
-        # Substracts all medicines from database (getAllMedicines defined in services.py)
-        existing_medicines = [(medicine[1], medicine[0]) for medicine in get_all_medicines()]
-        return jsonify(message="Showing existing medicines. Please select one.\n", medicines=existing_medicines)
+        existing_medicines = get_all_medicines()  # Llama la función para obtener las medicinas
+        print(f"Existing medicines: {existing_medicines}")
+        return jsonify(message="Showing existing medicines.", medicines=existing_medicines)
     except Exception as e:
         print(f"Error showing medicines: {e}")
         return jsonify(error=f"Failed to show medicines due to: {str(e)}"), 500
@@ -60,7 +60,7 @@ def select_medicine():
         # Checks if the medicine selected actually exists
         if (check_existing_medicine(medicine_id)):
             # Releases the medicine
-            release_medicine(medicine_id)
+            #release_medicine(medicine_id)
             return jsonify(message=f"Medicine '{medicine_id}' released successfully.")
         else:
             return jsonify(error="Medicine does not exists."), 404
@@ -74,7 +74,6 @@ def add_medicine():
     print("Adding a new medicine to MyHealthKit...")
 
     file = request.files['file']
-
     filename = file.filename
     _, ext = os.path.splitext(filename)
     save_path = os.path.join(os.getcwd(), f"new_medicine{ext}")
@@ -82,13 +81,11 @@ def add_medicine():
     print(f"Medicine photo saved at {save_path}")
 
     try:
-        # Calls OCR.Space in order to carry out the OCR
         resize_image_if_needed(save_path)
         extracted_text = ocr_space_file(save_path)
         print(f"OCR extracted text: {extracted_text}")
 
         if extracted_text.strip():
-            # Creates message for get_completion
             message = [
                 {
                     "role": "user",
@@ -97,20 +94,20 @@ def add_medicine():
                             "type": "text",
                             "text": (
                                 f"I scanned a real medicine box and these are the detected words: \"{extracted_text.strip()}\".\n"
-                                "IMPORTANT: Ignore any brand names you detect (like Numark, Boots, Bayer, etc.). "
-                                "Focus ONLY on the name of the active drug or medicine (such as Ibuprofen, Amoxicillin, Paracetamol, etc.). "
-                                "The product name must correspond to the drug itself, NOT the manufacturer or pharmacy brand. "
-                                "Return ONLY the real name of the medicine, without dosage, format or extra information."
+                                "IMPORTANT: Ignore brand names (e.g. Numark, Boots, Bayer).\n"
+                                "Return ONLY the real name of the active drug or medicine (e.g. Ibuprofen, Amoxicillin).\n"
+                                "DO NOT include any other information. Your response MUST contain just ONE WORD: the name."
                             )
                         }
                     ]
                 }
             ]
 
-            # Calls get_completion
             answer = get_completion(client, message).choices[0].message.content.strip()
+            # If it returns a sentence, we take only the first word
+            answer = answer.split()[0]
+            add_medicine_to_db(answer)
             print("Detected medicine name:", answer)
-
             return jsonify(message=f"Medicine '{answer}' has been successfully added.")
 
         else:

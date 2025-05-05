@@ -42,8 +42,9 @@ export default function App() {
         break;
   
     case 'askMedicine':
-      content = <AskMedicineScreen onBack={() => setScreen('home')} />;
-      break;
+        content = <AskMedicineScreen onBack={() => setScreen('home')} setScreen={setScreen} />;
+        break;
+
 
     case 'addMedicine':
       content = <AddMedicine onBack={() => setScreen('home')} />;
