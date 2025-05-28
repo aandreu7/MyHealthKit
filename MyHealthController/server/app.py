@@ -3,11 +3,11 @@ from flask_cors import CORS
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
-import sqlite3
 from services import *
 
 # Create a Flask application instance
 app = Flask(__name__)
+import re
 
 """
 !!! Important and clarifying information about Python decorators used in this code !!!
@@ -29,18 +29,71 @@ Flask app instance catches it using the following Python decorator:
 
 and the function defined under it (start_diagnosis) is executed.
 """
+
 # Route for the main page (GET request)
 @app.route('/')
 def index():
     # Returns a JSON response with a status of "OK"
     return jsonify(status="OK")
 
+@app.route('/show-medicines', methods=['GET'])
+def show_medicines():
+    print("Request received at /show-medicines")
+    try:
+        existing_medicines = get_all_medicines()  
+        print(f"Existing medicines: {existing_medicines}")
+        return jsonify(message="Showing existing medicines.", medicines=existing_medicines)
+    except Exception as e:
+        print(f"Error showing medicines: {e}")
+        return jsonify(error=f"Failed to show medicines due to: {str(e)}"), 500
+
+
+@app.route('/medicine-details', methods=['POST'])
+def medicine_details():
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        if not name:
+            return jsonify(error="No medicine name provided."), 400
+        medicine = get_medicine_by_name(name)
+        if not medicine:
+            return jsonify(error="Medicine not found."), 404
+        return jsonify(medicine)
+
+    except Exception as e:
+        print(f"Error in /medicine-details: {e}")
+        return jsonify(error="Internal server error."), 500
+
+
+@app.route('/select-medicine', methods=['POST'])
+def select_medicine():
+    print("Releasing the selected medicine...")
+    try:
+        # Substracts selected medicine by the user
+        data = request.get_json()
+        medicine_id = data.get('medicine_id')
+
+        # Server validation
+        if not medicine_id:
+            return jsonify(error="Missing 'medicine_id' in request."), 400
+        
+        # Checks if the medicine selected actually exists
+        if (check_existing_medicine(medicine_id)):
+            # Releases the medicine
+            #release_medicine(medicine_id)
+            return jsonify(message=f"Medicine '{medicine_id}' released successfully.")
+        else:
+            return jsonify(error="Medicine does not exists."), 404
+        
+    except Exception as e:
+        print(f"Error releasing medicine: {e}")
+        return jsonify(error=f"Failed to release medicine due to: {str(e)}"), 500
+
 @app.route('/add-medicine', methods=['POST'])
 def add_medicine():
     print("Adding a new medicine to MyHealthKit...")
 
     file = request.files['file']
-
     filename = file.filename
     _, ext = os.path.splitext(filename)
     save_path = os.path.join(os.getcwd(), f"new_medicine{ext}")
@@ -48,13 +101,11 @@ def add_medicine():
     print(f"Medicine photo saved at {save_path}")
 
     try:
-        # Llamar a OCR.Space para hacer el OCR
         resize_image_if_needed(save_path)
         extracted_text = ocr_space_file(save_path)
         print(f"OCR extracted text: {extracted_text}")
 
         if extracted_text.strip():
-            # Crear el mensaje para get_completion
             message = [
                 {
                     "role": "user",
@@ -62,22 +113,67 @@ def add_medicine():
                         {
                             "type": "text",
                             "text": (
-                                f"I scanned a real medicine box and these are the detected words: \"{extracted_text.strip()}\".\n"
-                                "IMPORTANT: Ignore any brand names you detect (like Numark, Boots, Bayer, etc.). "
-                                "Focus ONLY on the name of the active drug or medicine (such as Ibuprofen, Amoxicillin, Paracetamol, etc.). "
-                                "The product name must correspond to the drug itself, NOT the manufacturer or pharmacy brand. "
-                                "Return ONLY the real name of the medicine, without dosage, format or extra information."
+                                f"I scanned a real medicine box and these are the detected words: \"{extracted_text.strip()}\".\n\n"
+                                "TASK:\n"
+                                "1. Identify the real active ingredient (e.g., 'Paracetamol', 'Amoxicillin') from the provided words.\n"
+                                "2. Based on that name, return a structured JSON with:\n"
+                                "- name: (exact name of the active drug)\n"
+                                "- description: (short drug category or therapeutic use)\n"
+                                "- symptoms: (main symptoms or conditions it treats)\n"
+                                "- contraindications: (known contraindications or risks)\n"
+                                "- url_prospect: (must be from https://www.medicines.org.uk/emc/product/<number>/smpc, or null)\n\n"
+                                "IMPORTANT:\n"
+                                "- The response must be based ONLY on the name found in the extracted words.\n"
+                                "- Ignore brand names (e.g. Numark, Bayer).\n"
+                                "- Be medically accurate and concise.\n"
+                                "- Return only a valid JSON. No explanation or extra text.\n\n"
+                                "EXAMPLE RESPONSE:\n"
+                                "{\n"
+                                "  \"name\": \"Ibuprofen\",\n"
+                                "  \"description\": \"Non-steroidal anti-inflammatory drug\",\n"
+                                "  \"symptoms\": \"pain, inflammation, fever\",\n"
+                                "  \"contraindications\": \"gastric ulcer, kidney disease\",\n"
+                                "  \"url_prospect\": \"https://www.medicines.org.uk/emc/product/5678/smpc\"\n"
+                                "}"
                             )
                         }
                     ]
                 }
             ]
 
-            # Llamada a get_completion
-            answer = get_completion(client, message).choices[0].message.content.strip()
-            print("Detected medicine name:", answer)
+            raw_answer = get_completion(client, message).choices[0].message.content.strip()
 
-            return jsonify(message=f"Medicine '{answer}' has been successfully added.")
+            # SOLUCIÓN: Limpiar el bloque markdown si existe
+            def clean_json(raw):
+                # Elimina las marcas de código tipo ```json ... ```
+                raw = raw.strip()
+                if raw.startswith("```json"):
+                    raw = raw[len("```json"):].strip()
+                if raw.startswith("```"):
+                    raw = raw[len("```"):].strip()
+                if raw.endswith("```"):
+                    raw = raw[:-3].strip()
+                return raw
+
+            try:
+                clean_answer = clean_json(raw_answer)
+                medicine_info = json.loads(clean_answer)
+
+                remaining_units = 10
+
+                add_medicine_to_db(
+                    name=medicine_info.get("name", ""),
+                    description=medicine_info.get("description", ""),
+                    url_prospect=medicine_info.get("url_prospect", ""),
+                    symptoms=medicine_info.get("symptoms", ""),
+                    contraindications=medicine_info.get("contraindications", "")
+                )
+                print("Detected medicine info:", medicine_info)
+                return jsonify(message=f"Medicine '{medicine_info.get('name', '')}' has been successfully added.")
+
+            except json.JSONDecodeError:
+                print("Failed to decode JSON from AI response:", raw_answer)
+                return jsonify(error="Could not parse a valid JSON from the AI response."), 500
 
         else:
             raise ValueError("OCR could not detect text properly.")
@@ -85,7 +181,6 @@ def add_medicine():
     except Exception as e:
         print(f"Error processing medicine image: {e}")
         return jsonify(error=f"Failed to add medicine due to: {str(e)}"), 500
-
 
 # Route to start a diagnosis (POST request)
 @app.route('/start-diagnosis', methods=['POST'])
@@ -113,16 +208,7 @@ def start_diagnosis():
 
     print(transcribed_text)
 
-    # Create a new connection and cursor inside the function
-    conn = sqlite3.connect("../database/pharmacy.db")
-    cursor = conn.cursor()
-
-    sql_statement = "SELECT m.name FROM MEDICINES m WHERE m.remaining_units>0"
-    existing_medicines = [medicine[0] for medicine in cursor.execute(sql_statement).fetchall()]
-
-    # Close the cursor and connection once the query is done
-    cursor.close()
-    conn.close()
+    existing_medicines = [medicine[1] for medicine in get_all_medicines()]
 
     message = [
             {
@@ -189,6 +275,7 @@ if __name__ == '__main__':
 
     # Set the API key and base URL for the OpenRouter API
     load_dotenv(dotenv_path="./keys.env")
+    
     client = OpenAI(
         base_url="https://openrouter.ai/api/v1",
         api_key=os.getenv("OPENROUTER_API_KEY")

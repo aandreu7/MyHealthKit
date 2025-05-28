@@ -35,6 +35,8 @@ export default function AddMedicine({ onBack }: Props) {
         );
         if (response.success && response.message) {
           setServerMessage(response.message);
+        } else if (response.error) {
+          setServerMessage(response.error);  
         } else {
           setServerMessage('Failed to add the medicine.');
         }

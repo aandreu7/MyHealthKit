@@ -9,8 +9,8 @@ import { styles } from '@hooks/styles'
 
 type Props = {
   onBack: () => void;
+  setScreen: React.Dispatch<React.SetStateAction<'home' | 'askMedicine' | 'addMedicine' | 'showMedicines' | 'requestAMyHealthKit'>>;
 };
-
 /*
   // Function to play the recorded audio
   const playAudio = async (uri) => {
@@ -26,7 +26,7 @@ type Props = {
   };
 */
 
-export default function AskMedicineScreen({ onBack }: Props) {
+export default function AskMedicineScreen({ onBack, setScreen }: Props) {
   const [permissionResponse, requestPermission] = Audio.usePermissions();
   const [recording, setRecording] = useState();
 
@@ -125,7 +125,10 @@ export default function AskMedicineScreen({ onBack }: Props) {
           <Text style={styles.buttonText}>{recording ? 'Recording...' : 'Get a diagnosis'}</Text>
         </Pressable>
 
-        <Pressable style={styles.customButton} onPress={() => {}}>
+        <Pressable
+          style={styles.customButton}
+          onPress={() => setScreen('showMedicines')}
+        >
           <Text style={styles.buttonText}>Select a medicine</Text>
         </Pressable>
 
