@@ -7,7 +7,8 @@ export const enum Action2Robot {
   AskMedicine = 'ask-medicine',
   AddMedicine = 'add-medicine',
   ShowMedicines = 'show-medicines',
-  ReleaseMedicine = 'release-medicine'
+  ReleaseMedicine = 'release-medicine',
+  MedicineDetails = 'medicine-details'
 }
 
 const fetchWithTimeout = (url: string, options: RequestInit, timeout: number = 3000): Promise<Response> => {
@@ -34,10 +35,20 @@ export const sendMessageToRobot = async (
   action: Action2Robot,
   message?: string,
   uri?: string
-): Promise<{ success: boolean, error?: string, message?: string, medicines?: string[], existing_medicines?: any }> => {
+): Promise<{
+  success: boolean,
+  error?: string,
+  message?: string,
+  medicines?: string[],
+  existing_medicines?: any,
+  name?: string,
+  description?: string,
+  url_prospect?: string,
+  symptoms?: string,
+  contraindications?: string,
+}> => {
   try {
     const ping = await fetchWithTimeout(ROBOT_IP, {});
-
     if (!ping.ok) {
       return { success: false, error: 'MyHealthKit is not reachable or responded with an error (ping did not reach).' };
     }
@@ -59,11 +70,14 @@ export const sendMessageToRobot = async (
       case Action2Robot.ReleaseMedicine:
         url += `/select-medicine`;
         break;
+      case Action2Robot.MedicineDetails:
+        url += `/medicine-details`;
+        break;
       default:
         return { success: false, error: 'Unknown action.' };
     }
 
-    let response;
+    let response: any;
 
     if (uri) {
       if (action === Action2Robot.StartDiagnosis) {
@@ -85,15 +99,18 @@ export const sendMessageToRobot = async (
       }
     } else {
       if (action === Action2Robot.ShowMedicines) {
-        response = await fetch(url, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' }
-        });
+        response = await fetch(url, { method: 'GET' });
       } else if (action === Action2Robot.ReleaseMedicine) {
         response = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ medicine_id: message })
+        });
+      } else if (action === Action2Robot.MedicineDetails) {
+        response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: message })
         });
       } else {
         const headers: HeadersInit = { 'Content-Type': 'application/json' };
@@ -106,12 +123,22 @@ export const sendMessageToRobot = async (
       }
     }
 
+    if (action === Action2Robot.AddMedicine && uri && response && response.body) {
+      try {
+        const dataAnswer = JSON.parse(response.body);
+        return { success: true, message: dataAnswer.message };
+      } catch (e) {
+        return { success: false, error: "Could not parse server response as JSON: " + response.body };
+      }
+    }
+
     if (response && response.ok) {
       let dataAnswer;
       try {
-        dataAnswer = typeof response.json === 'function' ? await response.json() : JSON.parse(response.body);
+        dataAnswer = await response.json();
       } catch (error) {
-        console.log("Error parsing server's response:", error);
+        const text = await response.text();
+        return { success: false, error: "Could not parse server response as JSON: " + text };
       }
 
       switch (action) {
@@ -123,13 +150,30 @@ export const sendMessageToRobot = async (
           return { success: true, message: dataAnswer.message, medicines: dataAnswer.medicines };
         case Action2Robot.ReleaseMedicine:
           return { success: true, message: dataAnswer.message };
+        case Action2Robot.MedicineDetails:
+          return {
+            success: true,
+            name: dataAnswer.name,
+            description: dataAnswer.description,
+            url_prospect: dataAnswer.url_prospect,
+            symptoms: dataAnswer.symptoms,
+            contraindications: dataAnswer.contraindications
+          };
         default:
           return { success: true, message: dataAnswer.message };
       }
     } else {
-      return { success: false, error: 'Error in the response from the server.' };
+      let errorText = "";
+      try {
+        errorText = await response.text();
+        console.error("Server response error:", errorText);
+      } catch (err) {
+        errorText = "Error in the response from the server.";
+      }
+      return { success: false, error: errorText || 'Error in the response from the server.' };
     }
   } catch (error) {
+    console.error("Error sending message to robot:", error);
     return { success: false, error: 'Connection could not be established.' };
   }
 };

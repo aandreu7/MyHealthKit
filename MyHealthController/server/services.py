@@ -13,31 +13,73 @@ import pygame
 import asyncio
 import sqlite3
 
+
+# ES CANVIARA DE LLOC
+#########################
+from dotenv import load_dotenv
+import os
+import google.generativeai as genai
+load_dotenv(dotenv_path="./keys.env")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+genai.configure(api_key=GEMINI_API_KEY)
+###########################
+
 def release_medicine(medicine_id):
     pass
 
-#S'ha de modificar, pel moment sols passem el nom a la bd.
-def add_medicine_to_db(name: str):
+
+def get_medicine_by_name(name: str):
+    """
+    Retrieves all fields except remaining_units for a medicine given its name.
+    Returns a dict with the medicine's details or None if not found.
+    """
     conn = sqlite3.connect("../database/pharmacy.db")
     cursor = conn.cursor()
 
     sql = """
-    INSERT INTO medicines (name, description, remaining_units, url_prospect, symptoms, contraindications)
-    VALUES (?, ?, ?, ?, ?, ?)
+    SELECT name, description, url_prospect, symptoms, contraindications
+    FROM medicines
+    WHERE LOWER(name) = LOWER(?)
+    """
+
+    cursor.execute(sql, (name,))
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if row and len(row) == 5:
+        return {
+            'name': row[0],
+            'description': row[1],
+            'url_prospect': row[2],
+            'symptoms': row[3],
+            'contraindications': row[4]
+        }
+    else:
+        return None
+
+def add_medicine_to_db(name: str, description: str, url_prospect: str, symptoms: str, contraindications: str):
+    conn = sqlite3.connect("../database/pharmacy.db")
+    cursor = conn.cursor()
+
+    sql = """
+    INSERT INTO medicines
+    (name, description, url_prospect, symptoms, contraindications)
+    VALUES (?, ?, ?, ?, ?)
     """
 
     cursor.execute(sql, (
         name,
-        "",
-        50,  
-        "",  
-        "",  
-        ""   
+        description,
+        url_prospect,
+        symptoms,
+        contraindications
     ))
 
     conn.commit()
     cursor.close()
     conn.close()
+
 
 def check_existing_medicine(medicine_id) -> bool:
     # Create a new connection and cursor inside the function
@@ -236,19 +278,31 @@ def transcribe_audio(file, *, model=None, language="en-US") -> str:
 
     return result_text.strip()
 
-def get_completion(client, message, temperature=0.2, max_tokens=300):
+def get_completion(client, message, temperature=0.2, max_tokens=300, use_gemini_native=False):
     """
-    Makes calls to the OpenRouter API to get a response based on the provided message.
+    Makes calls to LLMs (Gemini native, OpenRouter, Together) to get a response based on the provided message.
+    Set use_gemini_native=True to prioritize Google Gemini native (using your own API key).
     """
 
     def evaluate_LLM_response(answer):
         """
-        Evaluates the response from the LLM to ensure it is valid and contains the expected structure.
+        Checks if the LLM response is valid and has the expected structure.
+        Handles both object responses (OpenRouter, Together) and plain string (Gemini native).
         """
-
         if not answer:
             return False
 
+        # Gemini native: response is a string (not an object with choices)
+        if isinstance(answer, str):
+            try:
+                # Try to parse as JSON for minimum validation
+                import json
+                json.loads(answer)
+                return True
+            except Exception:
+                return False
+
+        # OpenRouter/Together structure
         if hasattr(answer, "error") and answer.error:
             if answer.error.get("code") == 429:
                 print("Usage time exceeded.")
@@ -265,18 +319,21 @@ def get_completion(client, message, temperature=0.2, max_tokens=300):
 
     def call_LLM(model_name: str, defaultOption=True):
         """
-        Calls the LLM with the provided model name.
+        Calls the LLM with the given model name.
+        - If defaultOption is True: use OpenRouter models.
+        - If defaultOption is False: use Together.ai models.
         """
-        if defaultOption: # OpenRouter models
+        if defaultOption:  # OpenRouter models
             return client.chat.completions.create(
                 extra_body={
-                    "temperature": temperature, # Controlls model creativity.
-                    "max_tokens": max_tokens # Output length in tokens.
+                    "temperature": temperature,
+                    "max_tokens": max_tokens
                 },
                 model=model_name,
                 messages=message
             )
-        else: # Together.ai models
+        else:  # Together.ai models
+            from together import Together
             clientTogether = Together()
             return clientTogether.chat.completions.create(
                 temperature=temperature,
@@ -284,26 +341,44 @@ def get_completion(client, message, temperature=0.2, max_tokens=300):
                 model=model_name,
                 messages=message,
             )
-        
+
+    # --- Try Gemini native first, if requested ---
     try:
-        # First chance at Google Gemini (OpenRouter)
+        if use_gemini_native:
+            # Prepare the prompt for Gemini native (Google Generative AI)
+            # Extract prompt text from your message structure
+            # Adjust if your message is a plain string or has a different structure
+            if isinstance(message, list):
+                prompt = message[0]['content'][0]['text']
+            else:
+                prompt = message
+
+            model = genai.GenerativeModel("gemini-pro")
+            response = model.generate_content(prompt)
+            answer = response.text
+
+            if evaluate_LLM_response(answer):
+                return answer
+
+        # --- Try OpenRouter (Google Gemini) ---
         answer = call_LLM("google/gemini-2.0-flash-exp:free")
 
         if evaluate_LLM_response(answer):
             return answer
-        
-        # Second chance at Nvidia/Meta Llama 3.3 (OpenRouter)
+
+        # --- Try OpenRouter (Nvidia/Meta Llama 3.3) ---
         answer = call_LLM("nvidia/llama-3.3-nemotron-super-49b-v1:free")
 
         if evaluate_LLM_response(answer):
             return answer
-        
-        # Third chance at Meta Llama 3.3 (Together.ai)
+
+        # --- Try Together.ai (Meta Llama 3.3) ---
         answer = call_LLM("meta-llama/Llama-3.3-70B-Instruct-Turbo-Free", False)
-        
+
         if evaluate_LLM_response(answer):
             return answer
 
+        # --- No valid response from any LLM ---
         raise RuntimeError("No valid response from any LLM.")
 
     except Exception as e:

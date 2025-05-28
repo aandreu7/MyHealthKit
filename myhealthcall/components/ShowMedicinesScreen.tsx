@@ -5,9 +5,10 @@ import { styles } from '@hooks/styles';
 
 type Props = {
   onBack: () => void;
+  onShowMedicineDetails: (medicineName: string) => void; // Solo el nombre
 };
 
-export default function ShowMedicinesScreen({ onBack }: Props) {
+export default function ShowMedicinesScreen({ onBack, onShowMedicineDetails }: Props) {
   const [medicines, setMedicines] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -31,35 +32,15 @@ export default function ShowMedicinesScreen({ onBack }: Props) {
 
     fetchMedicines();
   }, []);
-
-  const handleSelectMedicine = async (medicine: string) => {
-    Alert.alert('Medicine selected', medicine, [
-      {
-        text: 'OK',
-        onPress: async () => {
-          setLoading(true);
-          try {
-            const response = await sendMessageToRobot(Action2Robot.ReleaseMedicine, medicine);
-            if (response.success) {
-              Alert.alert('Success', `Medicine '${medicine}' has been released.`);
-            } else {
-              Alert.alert('Error', `Could not release medicine '${medicine}'.`);
-            }
-          } catch (error) {
-            console.error('Error releasing medicine:', error);
-            Alert.alert('Error', 'There was a problem releasing the medicine.');
-          } finally {
-            setLoading(false);
-          }
-        },
-      },
-    ]);
+  
+  const handleSelectMedicine = (medicine: string) => {
+    onShowMedicineDetails(medicine);
   };
 
   if (loading) {
     return (
       <View style={styles.center}>
-        <Text style={styles.message}>Loading medicines...</Text>
+        <Text style={styles.message}>Loading...</Text>
       </View>
     );
   }

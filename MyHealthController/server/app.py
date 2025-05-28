@@ -7,6 +7,7 @@ from services import *
 
 # Create a Flask application instance
 app = Flask(__name__)
+import re
 
 """
 !!! Important and clarifying information about Python decorators used in this code !!!
@@ -28,6 +29,7 @@ Flask app instance catches it using the following Python decorator:
 
 and the function defined under it (start_diagnosis) is executed.
 """
+
 # Route for the main page (GET request)
 @app.route('/')
 def index():
@@ -38,12 +40,30 @@ def index():
 def show_medicines():
     print("Request received at /show-medicines")
     try:
-        existing_medicines = get_all_medicines()  # Llama la función para obtener las medicinas
+        existing_medicines = get_all_medicines()  
         print(f"Existing medicines: {existing_medicines}")
         return jsonify(message="Showing existing medicines.", medicines=existing_medicines)
     except Exception as e:
         print(f"Error showing medicines: {e}")
         return jsonify(error=f"Failed to show medicines due to: {str(e)}"), 500
+
+
+@app.route('/medicine-details', methods=['POST'])
+def medicine_details():
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        if not name:
+            return jsonify(error="No medicine name provided."), 400
+        medicine = get_medicine_by_name(name)
+        if not medicine:
+            return jsonify(error="Medicine not found."), 404
+        return jsonify(medicine)
+
+    except Exception as e:
+        print(f"Error in /medicine-details: {e}")
+        return jsonify(error="Internal server error."), 500
+
 
 @app.route('/select-medicine', methods=['POST'])
 def select_medicine():
@@ -93,22 +113,67 @@ def add_medicine():
                         {
                             "type": "text",
                             "text": (
-                                f"I scanned a real medicine box and these are the detected words: \"{extracted_text.strip()}\".\n"
-                                "IMPORTANT: Ignore brand names (e.g. Numark, Boots, Bayer).\n"
-                                "Return ONLY the real name of the active drug or medicine (e.g. Ibuprofen, Amoxicillin).\n"
-                                "DO NOT include any other information. Your response MUST contain just ONE WORD: the name."
+                                f"I scanned a real medicine box and these are the detected words: \"{extracted_text.strip()}\".\n\n"
+                                "TASK:\n"
+                                "1. Identify the real active ingredient (e.g., 'Paracetamol', 'Amoxicillin') from the provided words.\n"
+                                "2. Based on that name, return a structured JSON with:\n"
+                                "- name: (exact name of the active drug)\n"
+                                "- description: (short drug category or therapeutic use)\n"
+                                "- symptoms: (main symptoms or conditions it treats)\n"
+                                "- contraindications: (known contraindications or risks)\n"
+                                "- url_prospect: (must be from https://www.medicines.org.uk/emc/product/<number>/smpc, or null)\n\n"
+                                "IMPORTANT:\n"
+                                "- The response must be based ONLY on the name found in the extracted words.\n"
+                                "- Ignore brand names (e.g. Numark, Bayer).\n"
+                                "- Be medically accurate and concise.\n"
+                                "- Return only a valid JSON. No explanation or extra text.\n\n"
+                                "EXAMPLE RESPONSE:\n"
+                                "{\n"
+                                "  \"name\": \"Ibuprofen\",\n"
+                                "  \"description\": \"Non-steroidal anti-inflammatory drug\",\n"
+                                "  \"symptoms\": \"pain, inflammation, fever\",\n"
+                                "  \"contraindications\": \"gastric ulcer, kidney disease\",\n"
+                                "  \"url_prospect\": \"https://www.medicines.org.uk/emc/product/5678/smpc\"\n"
+                                "}"
                             )
                         }
                     ]
                 }
             ]
 
-            answer = get_completion(client, message).choices[0].message.content.strip()
-            # If it returns a sentence, we take only the first word
-            answer = answer.split()[0]
-            add_medicine_to_db(answer)
-            print("Detected medicine name:", answer)
-            return jsonify(message=f"Medicine '{answer}' has been successfully added.")
+            raw_answer = get_completion(client, message).choices[0].message.content.strip()
+
+            # SOLUCIÓN: Limpiar el bloque markdown si existe
+            def clean_json(raw):
+                # Elimina las marcas de código tipo ```json ... ```
+                raw = raw.strip()
+                if raw.startswith("```json"):
+                    raw = raw[len("```json"):].strip()
+                if raw.startswith("```"):
+                    raw = raw[len("```"):].strip()
+                if raw.endswith("```"):
+                    raw = raw[:-3].strip()
+                return raw
+
+            try:
+                clean_answer = clean_json(raw_answer)
+                medicine_info = json.loads(clean_answer)
+
+                remaining_units = 10
+
+                add_medicine_to_db(
+                    name=medicine_info.get("name", ""),
+                    description=medicine_info.get("description", ""),
+                    url_prospect=medicine_info.get("url_prospect", ""),
+                    symptoms=medicine_info.get("symptoms", ""),
+                    contraindications=medicine_info.get("contraindications", "")
+                )
+                print("Detected medicine info:", medicine_info)
+                return jsonify(message=f"Medicine '{medicine_info.get('name', '')}' has been successfully added.")
+
+            except json.JSONDecodeError:
+                print("Failed to decode JSON from AI response:", raw_answer)
+                return jsonify(error="Could not parse a valid JSON from the AI response."), 500
 
         else:
             raise ValueError("OCR could not detect text properly.")
@@ -116,7 +181,6 @@ def add_medicine():
     except Exception as e:
         print(f"Error processing medicine image: {e}")
         return jsonify(error=f"Failed to add medicine due to: {str(e)}"), 500
-
 
 # Route to start a diagnosis (POST request)
 @app.route('/start-diagnosis', methods=['POST'])
@@ -211,6 +275,7 @@ if __name__ == '__main__':
 
     # Set the API key and base URL for the OpenRouter API
     load_dotenv(dotenv_path="./keys.env")
+    
     client = OpenAI(
         base_url="https://openrouter.ai/api/v1",
         api_key=os.getenv("OPENROUTER_API_KEY")
