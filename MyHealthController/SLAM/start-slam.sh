@@ -1,5 +1,5 @@
-# This file should be located in /usr/local/bin
 #!/bin/bash
+# This file should be located in /usr/local/bin
 
 sleep 10
 
