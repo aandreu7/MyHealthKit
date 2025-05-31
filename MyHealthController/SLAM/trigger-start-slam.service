@@ -5,9 +5,9 @@
 # sudo systemctl enable trigger-start-slam.service
 # The script will be automatically executed when the Raspberry starts 
 # You can start the execution using:
-# sudo systemctl start mi_script.service
+# sudo systemctl start trigger-start-slam.service
 # You can stop the execution using:
-# sudo systemctl stop mi_script.service
+# sudo systemctl stop trigger-start-slam.service
 
 [Unit]
 Description=Triggers start-slam.sh script
