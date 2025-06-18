@@ -1,0 +1,25 @@
+# This file should be located in /etc/systemd/system/
+# The goal of this service is to trigger start-slam.sh script, every time the Raspberry starts
+# Once it is created, activate the service executing:
+# sudo systemctl daemon-reload
+# sudo systemctl enable trigger-start-slam.service
+# The script will be automatically executed when the Raspberry starts 
+# You can start the execution using:
+# sudo systemctl start trigger-start-slam.service
+# You can stop the execution using:
+# sudo systemctl stop trigger-start-slam.service
+
+[Unit]
+Description=Triggers start-slam.sh script
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/start-slam.sh
+User=MyHealthKit
+WorkingDirectory=/home/MyHealthKit
+StandardOutput=append:/home/MyHealthKit/start-slam.log
+StandardError=append:/home/MyHealthKit/start-slam_error.log
+Restart=no
+
+[Install]
+WantedBy=multi-user.target
