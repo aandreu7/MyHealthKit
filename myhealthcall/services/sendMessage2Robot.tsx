@@ -1,6 +1,6 @@
 import * as FileSystem from 'expo-file-system';
 
-export const ROBOT_IP = 'http://192.168.1.135:5000';
+export const ROBOT_IP = 'http://192.168.1.176:5000';
 
 export const enum Action2Robot {
   StartDiagnosis = 'start-diagnosis',
@@ -8,7 +8,8 @@ export const enum Action2Robot {
   AddMedicine = 'add-medicine',
   ShowMedicines = 'show-medicines',
   ReleaseMedicine = 'release-medicine',
-  MedicineDetails = 'medicine-details'
+  MedicineDetails = 'medicine-details',
+  RequestMyHealthKit = 'request-myhealthkit'
 }
 
 const fetchWithTimeout = (url: string, options: RequestInit, timeout: number = 3000): Promise<Response> => {
@@ -73,6 +74,9 @@ export const sendMessageToRobot = async (
       case Action2Robot.MedicineDetails:
         url += `/medicine-details`;
         break;
+      case Action2Robot.RequestMyHealthKit:
+        url += '/request-myhealthkit';
+        break;
       default:
         return { success: false, error: 'Unknown action.' };
     }
@@ -132,10 +136,17 @@ export const sendMessageToRobot = async (
       }
     }
 
-    if (response && response.ok) {
+    console.log("Server response: ", response);
+
+    if (response && (response.ok || (response.status >= 200 && response.status < 300))) {
       let dataAnswer;
       try {
-        dataAnswer = await response.json();
+        if (action == Action2Robot.StartDiagnosis) {
+            dataAnswer = JSON.parse(response.body);
+        }
+        else {
+            dataAnswer = await response.json();
+        }
       } catch (error) {
         const text = await response.text();
         return { success: false, error: "Could not parse server response as JSON: " + text };
