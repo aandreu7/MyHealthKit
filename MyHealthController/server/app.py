@@ -64,6 +64,19 @@ def medicine_details():
         print(f"Error in /medicine-details: {e}")
         return jsonify(error="Internal server error."), 500
 
+@app.route('/request-myhealthkit', methods=['POST'])
+def request_myhealthkit():
+    try:
+        data = request.get_json()
+        qr_content = data.get("message")
+        location = validate_qr_code(qr_content)
+        if location==-1:
+            raise ValueError("Invalid QR code scanned")
+        print("MyHealthKit setting sale to: ", location)
+        return jsonify(message="OK")
+    
+    except Exception as e:
+        return jsonify(error=f"Failed to request a MyHealthKit due to: {str(e)}"), 500
 
 @app.route('/select-medicine', methods=['POST'])
 def select_medicine():
@@ -143,9 +156,7 @@ def add_medicine():
 
             raw_answer = get_completion(client, message).choices[0].message.content.strip()
 
-            # SOLUCIÓN: Limpiar el bloque markdown si existe
             def clean_json(raw):
-                # Elimina las marcas de código tipo ```json ... ```
                 raw = raw.strip()
                 if raw.startswith("```json"):
                     raw = raw[len("```json"):].strip()
@@ -158,6 +169,11 @@ def add_medicine():
             try:
                 clean_answer = clean_json(raw_answer)
                 medicine_info = json.loads(clean_answer)
+
+                print("Medicine info: ", medicine_info)
+
+                if not validate_medicine_info(medicine_info):
+                    raise ValueError("Invalid medicine information extracted by OCR and LLM")
 
                 remaining_units = 10
 
@@ -208,7 +224,7 @@ def start_diagnosis():
 
     print(transcribed_text)
 
-    existing_medicines = [medicine[1] for medicine in get_all_medicines()]
+    existing_medicines = get_all_medicines()
 
     message = [
             {
@@ -231,7 +247,8 @@ def start_diagnosis():
 
     # Makes a call to the OpenRouter API to get a response based on the provided message
     # The get_completion function is defined in the services.py file and is responsible for interacting with the OpenRouter API
-    answer = get_completion(client, message).choices[0].message.content
+    answer = get_completion(client, message, use_gemini_native=True).choices[0].message.content
+    print("Answer received: ", answer)
 
     try:
         medicines_suggested = extract_medicines_list(answer)
@@ -280,6 +297,10 @@ if __name__ == '__main__':
         base_url="https://openrouter.ai/api/v1",
         api_key=os.getenv("OPENROUTER_API_KEY")
     )
+
+    # Set the API key and configure Gemini API
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    genai.configure(api_key=GEMINI_API_KEY)
 
     # Enables Cross Origin Resource Sharing (CORS) for the Flask app
     # This allows the app to accept requests from different origins, which is useful for development and API usage

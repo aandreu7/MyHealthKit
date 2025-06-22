@@ -12,17 +12,10 @@ import edge_tts
 import pygame
 import asyncio
 import sqlite3
-
-
-# ES CANVIARA DE LLOC
-#########################
-from dotenv import load_dotenv
-import os
 import google.generativeai as genai
-load_dotenv(dotenv_path="./keys.env")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-genai.configure(api_key=GEMINI_API_KEY)
-###########################
+
+
+
 
 def release_medicine(medicine_id):
     pass
@@ -188,6 +181,19 @@ def format_human_readable(text: str) -> str:
     clean_lines = [line.lstrip("- ").strip() for line in lines if line.strip()]
     return " ".join(clean_lines)
 
+def validate_medicine_info(medicine_info: dict) -> bool:
+    if type(medicine_info) != dict:
+        return False
+    for value in medicine_info.values():
+        if value==None or value=="None" or not value:
+            return False
+    return True
+
+def validate_qr_code(qr_content: str) -> int:
+    if qr_content[:-1]!="location" or not qr_content[-1].isdigit():
+        return -1
+    return qr_content[-1]
+
 def speak(text, language = "en-US"):
     """
     Converts the provided text into speech using Edge TTS.
@@ -342,8 +348,8 @@ def get_completion(client, message, temperature=0.2, max_tokens=300, use_gemini_
                 messages=message,
             )
 
-    # --- Try Gemini native first, if requested ---
     try:
+        """
         if use_gemini_native:
             # Prepare the prompt for Gemini native (Google Generative AI)
             # Extract prompt text from your message structure
@@ -358,25 +364,42 @@ def get_completion(client, message, temperature=0.2, max_tokens=300, use_gemini_
             answer = response.text
 
             if evaluate_LLM_response(answer):
+                print("Gemini Native responded.")
                 return answer
+        """
 
         # --- Try OpenRouter (Google Gemini) ---
-        answer = call_LLM("google/gemini-2.0-flash-exp:free")
-
-        if evaluate_LLM_response(answer):
-            return answer
+        try:
+            answer = call_LLM("google/gemini-2.0-flash-exp:free")
+            if evaluate_LLM_response(answer):
+                print("Gemini OpenRouter responded.")
+                return answer
+            else:
+                print("OpenRouter's Google Gemini answered wrong: ", answer)
+        except:
+            print("OpenRouter's Google Gemini failed request.")
 
         # --- Try OpenRouter (Nvidia/Meta Llama 3.3) ---
-        answer = call_LLM("nvidia/llama-3.3-nemotron-super-49b-v1:free")
-
-        if evaluate_LLM_response(answer):
-            return answer
+        try:
+            answer = call_LLM("nvidia/llama-3.3-nemotron-super-49b-v1:free")
+            if evaluate_LLM_response(answer):
+                print("Nvidia/Meta Llama 3.3 responded.")
+                return answer
+            else:
+                print("OpenRouter's Nvidia/Llama-3.3 answered wrong: ", answer)
+        except:
+            print("OpenRouter's Nvidia/Llama-3.3 failed request.")
 
         # --- Try Together.ai (Meta Llama 3.3) ---
-        answer = call_LLM("meta-llama/Llama-3.3-70B-Instruct-Turbo-Free", False)
-
-        if evaluate_LLM_response(answer):
-            return answer
+        try:
+            answer = call_LLM("meta-llama/Llama-3.3-70B-Instruct-Turbo-Free", False)
+            if evaluate_LLM_response(answer):
+                print("Meta LLama 3.3 (together) responded.")
+                return answer
+            else:
+                print("Together.ai's meta-llama/Llama-3.3 answered wrong: ", answer)
+        except:
+            print("Together.ai's meta-llama/Llama-3.3 failed request.")
 
         # --- No valid response from any LLM ---
         raise RuntimeError("No valid response from any LLM.")
