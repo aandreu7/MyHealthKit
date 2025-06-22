@@ -46,6 +46,7 @@ export const sendMessageToRobot = async (
   url_prospect?: string,
   symptoms?: string,
   contraindications?: string,
+  audioUri?: string,
 }> => {
   try {
     const ping = await fetchWithTimeout(ROBOT_IP, {});
@@ -88,6 +89,21 @@ export const sendMessageToRobot = async (
           mimeType: 'audio/m4a',
           parameters: {},
         });
+
+        if (response && response.status === 200) {
+          const dataAnswer = JSON.parse(response.body); 
+          return {
+            success: true,
+            audioUri: dataAnswer.audioUri, 
+            message: dataAnswer.message,
+            medicines: dataAnswer.medicines
+          };
+        } else {
+          return {
+            success: false,
+            error: "Server did not return audio successfully."
+          };
+        }
       } else if (action === Action2Robot.AddMedicine) {
         response = await FileSystem.uploadAsync(url, uri, {
           fieldName: 'file',

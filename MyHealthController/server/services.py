@@ -1,5 +1,8 @@
 import re
 import subprocess
+import base64
+import requests
+import json
 import wave
 from PIL import Image
 import json
@@ -21,12 +24,33 @@ import os
 import google.generativeai as genai
 load_dotenv(dotenv_path="./keys.env")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+OCR_API_KEY = os.getenv("OCR_API_KEY")
 genai.configure(api_key=GEMINI_API_KEY)
 ###########################
 
+def ocr_google_api(image_path):
+    url = f"https://vision.googleapis.com/v1/images:annotate?key={OCR_API_KEY}"
+    headers = {"Content-Type": "application/json"}
+    with open(image_path, "rb") as img_file:
+        base64_image = base64.b64encode(img_file.read()).decode("utf-8")
+    body = {
+        "requests": [
+            {
+                "image": {"content": base64_image},
+                "features": [{"type": "TEXT_DETECTION"}]
+            }
+        ]
+    }
+    response = requests.post(url, headers=headers, data=json.dumps(body))
+    result = response.json()
+    try:
+        return result['responses'][0]['fullTextAnnotation']['text']
+    except KeyError:
+        print("No text detected or API error:", result)
+        return ""
+    
 def release_medicine(medicine_id):
     pass
-
 
 def get_medicine_by_name(name: str):
     """
@@ -103,7 +127,7 @@ def get_all_medicines() -> list:
     conn = sqlite3.connect("../database/pharmacy.db")
     cursor = conn.cursor()
 
-    sql_statement = "SELECT name FROM MEDICINES WHERE remaining_units > 0"
+    sql_statement = "SELECT name FROM MEDICINES"
 
     existing_medicines = [row[0] for row in cursor.execute(sql_statement).fetchall()]
     print(f"Existing medicines fetched: {existing_medicines}")
@@ -111,56 +135,6 @@ def get_all_medicines() -> list:
     conn.close()
 
     return existing_medicines
-
-def ocr_space_file(filename):
-    """
-    Sends image to OCR.Space API and returns detected text.
-    """
-    payload = {
-        'isOverlayRequired': False,
-        'apikey': os.getenv("OCR_SPACE_API_KEY"),
-        'language': 'eng',
-    }
-    with open(filename, 'rb') as f:
-        response = requests.post(
-            'https://api.ocr.space/parse/image',
-            files={filename: f},
-            data=payload,
-        )
-    try:
-        result = response.json()
-    except Exception as e:
-        print(f"Error parsing OCR.Space response as JSON: {e}")
-        print("OCR.Space raw response text:", response.text)
-        raise e
-
-    print("OCR.Space result:", result)
-
-    if isinstance(result, dict) and result.get('ParsedResults'):
-        return result['ParsedResults'][0]['ParsedText']
-    else:
-        raise ValueError(f"OCR failed or bad API response: {result}")
-
-def resize_image_if_needed(image_path, max_size_kb=1024):
-    """
-    Reduces image size in case it is bigger than allowed (OCR.Space = 1MB)
-    """
-    max_size_bytes = max_size_kb * 1024
-    img = Image.open(image_path)
-
-    # Keeps in quality 85% so as to reduce size
-    img.save(image_path, optimize=True, quality=85)
-
-    # Verifies size
-    if os.path.getsize(image_path) > max_size_bytes:
-        print("Image still too big after compression. Trying to resize...")
-        width, height = img.size
-        new_width = width // 2
-        new_height = height // 2
-        img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-        img.save(image_path, optimize=True, quality=85)
-    
-    print(f"Final image size: {os.path.getsize(image_path) / 1024:.2f} KB")
 
 def play_mp3(filename):
     """
@@ -219,7 +193,7 @@ def speak(text, language = "en-US"):
     """
 
     # Play the generated audio file
-    play_mp3("diagnosis-output.mp3")
+    #play_mp3("diagnosis-output.mp3")
 
 
 def transcribe_audio(file, *, model=None, language="en-US") -> str:
@@ -345,20 +319,11 @@ def get_completion(client, message, temperature=0.2, max_tokens=300, use_gemini_
     # --- Try Gemini native first, if requested ---
     try:
         if use_gemini_native:
-            # Prepare the prompt for Gemini native (Google Generative AI)
-            # Extract prompt text from your message structure
-            # Adjust if your message is a plain string or has a different structure
-            if isinstance(message, list):
-                prompt = message[0]['content'][0]['text']
-            else:
-                prompt = message
-
-            model = genai.GenerativeModel("gemini-pro")
+            prompt = message if isinstance(message, str) else message[0].get("content", "")
+            model = genai.GenerativeModel("gemini-1.5-pro")
             response = model.generate_content(prompt)
             answer = response.text
-
-            if evaluate_LLM_response(answer):
-                return answer
+            return answer
 
         # --- Try OpenRouter (Google Gemini) ---
         answer = call_LLM("google/gemini-2.0-flash-exp:free")

@@ -3,37 +3,21 @@
 
 import { Alert, View, Text, Pressable, Image, ScrollView } from 'react-native';
 import { sendMessageToRobot, Action2Robot } from '@/services/sendMessage2Robot';
-import { useState } from 'react'
+import { useState, useRef } from 'react';
 import { Audio } from 'expo-av';
-import { styles } from '@hooks/styles'
+import { styles } from '@hooks/styles';
 
 type Props = {
   onBack: () => void;
   setScreen: React.Dispatch<React.SetStateAction<'home' | 'askMedicine' | 'addMedicine' | 'showMedicines' | 'requestAMyHealthKit'>>;
 };
-/*
-  // Function to play the recorded audio
-  const playAudio = async (uri) => {
-    if (sound) {
-      await sound.unloadAsync(); // Make sure to unload the previous sound if there was one
-    }
-    const { sound } = await Audio.Sound.createAsync(
-      { uri: uri }, // Pass the URI of the file
-      { shouldPlay: true } // Automatically play it
-    );
-    setSound(sound);
-    console.log('Playing audio...');
-  };
-*/
 
 export default function AskMedicineScreen({ onBack, setScreen }: Props) {
   const [permissionResponse, requestPermission] = Audio.usePermissions();
-  const [recording, setRecording] = useState();
-
+  const [recording, setRecording] = useState<Audio.Recording | undefined>();
   const [diagnosisMessage, setDiagnosisMessage] = useState<string | null>(null);
   const [suggestedMedicines, setSuggestedMedicines] = useState<string[] | null>(null);
-
-  // const [sound, setSound] = useState(null);
+  const soundRef = useRef<Audio.Sound | null>(null);
 
   async function startRecording() {
     try {
@@ -41,8 +25,8 @@ export default function AskMedicineScreen({ onBack, setScreen }: Props) {
         console.log('Requesting permission..');
         const newPermission = await requestPermission();
         if (newPermission.status !== 'granted') {
-            console.warn('Permission not granted');
-            return;
+          console.warn('Permission not granted');
+          return;
         }
       }
 
@@ -57,7 +41,6 @@ export default function AskMedicineScreen({ onBack, setScreen }: Props) {
       );
 
       setRecording(recording);
-
       console.log('Recording started');
     } catch (err) {
       console.error('Failed to start recording', err);
@@ -68,18 +51,11 @@ export default function AskMedicineScreen({ onBack, setScreen }: Props) {
     try {
       console.log('Stopping recording..');
       setRecording(undefined);
-      await recording.stopAndUnloadAsync();
-      await Audio.setAudioModeAsync(
-        {
-            allowsRecordingIOS: false,
-        }
-      );
-
-      const uri = recording.getURI();
+      await recording?.stopAndUnloadAsync();
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+      const uri = recording?.getURI();
       console.log('Recording stopped and stored at', uri);
-
-      return uri;
-
+      return uri || null;
     } catch (err) {
       console.error('Failed to stop recording', err);
       return null;
@@ -93,21 +69,31 @@ export default function AskMedicineScreen({ onBack, setScreen }: Props) {
       } else {
         const uri = await stopRecording();
         if (uri) {
-            const response = await sendMessageToRobot(Action2Robot.StartDiagnosis, undefined, uri);
-            console.log(response);
-            if (response.success) {
-                setDiagnosisMessage(response.message);
-                setSuggestedMedicines(response.medicines);
+          const response = await sendMessageToRobot(Action2Robot.StartDiagnosis, undefined, uri);
+          console.log(response);
+          if (response.success) {
+            setDiagnosisMessage(response.message || null);
+            setSuggestedMedicines(response.medicines || null);
+
+            if (response.audioUri) {
+              if (soundRef.current) {
+                await soundRef.current.unloadAsync();
+                soundRef.current = null;
+              }
+              const { sound } = await Audio.Sound.createAsync({ uri: response.audioUri });
+              soundRef.current = sound;
+              await sound.playAsync();
+              console.log('Reproduciendo audio de diagnóstico...');
             }
-            else {
-                Alert.alert("Error", "MyHealthKit could not answer.");
-            }
+          } else {
+            Alert.alert('Error', 'MyHealthKit could not answer.');
+          }
         } else {
-            Alert.alert("Error", "There was an issue with the voice recognition.");
+          Alert.alert('Error', 'There was an issue with the voice recognition.');
         }
       }
     } catch (error) {
-      Alert.alert("Error", "There was an issue with the voice recognition.");
+      Alert.alert('Error', 'There was an issue with the voice recognition.');
     }
   };
 
@@ -141,15 +127,6 @@ export default function AskMedicineScreen({ onBack, setScreen }: Props) {
         <View style={styles.resultContainer}>
           <Text style={styles.resultTitle}>Diagnosis Result:</Text>
           <Text style={styles.resultText}>{diagnosisMessage}</Text>
-
-          {suggestedMedicines && suggestedMedicines.length > 0 && (
-            <View style={styles.medicinesList}>
-              <Text style={styles.resultTitle}>Suggested Medicines:</Text>
-              {suggestedMedicines.map((med, index) => (
-                <Text key={index} style={styles.medicineItem}>• {med}</Text>
-              ))}
-            </View>
-          )}
         </View>
       )}
     </ScrollView>
