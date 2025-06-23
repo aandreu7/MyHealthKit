@@ -131,6 +131,7 @@ export default function MedicineDetails({ medicineId, onBack }: Props) {
         </View>
       </View>
 
+
       <View style={{ gap: 12, alignItems: 'center' }}>
         <Pressable style={[styles.customButton, { width: 180 }]} onPress={onBack}>
           <Text style={styles.buttonText}>Back</Text>

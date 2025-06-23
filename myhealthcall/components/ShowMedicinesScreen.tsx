@@ -42,6 +42,7 @@ export default function ShowMedicinesScreen({ onBack, onShowMedicineDetails }: P
     onShowMedicineDetails(medicineId); // pasamos el ID
   };
 
+  
   if (loading) {
     return (
       <View style={styles.center}>

@@ -116,6 +116,7 @@ def select_medicine():
             return jsonify(error="Medicine does not exist."), 404
         
         execute_spin_wheel(position)
+        #LA TRAMPILLA
 
         print(f"Medicine '{medicine_id}' found at position {position}")
         return jsonify(message=f"Medicine '{medicine_id}' selected at position {position}.")

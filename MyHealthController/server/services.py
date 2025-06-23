@@ -137,6 +137,19 @@ def get_position_medicine(medicine_id: int) -> int | None:
         return result[0]
     return None
 
+def get_all_medicines() -> list:
+    conn = sqlite3.connect("../database/pharmacy.db")
+    cursor = conn.cursor()
+
+    sql_statement = "SELECT name FROM MEDICINES"
+
+    existing_medicines = [row[0] for row in cursor.execute(sql_statement).fetchall()]
+    print(f"Existing medicines fetched: {existing_medicines}")
+    cursor.close()
+    conn.close()
+
+    return existing_medicines
+
 def get_all_medicines_with_ids():
     conn = sqlite3.connect("../database/pharmacy.db")
     cursor = conn.cursor()
