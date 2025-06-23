@@ -41,24 +41,21 @@ def serve_audio():
 
 @app.route('/show-medicines', methods=['GET'])
 def show_medicines():
-    print("Request received at /show-medicines")
-    try:
-        existing_medicines = get_all_medicines()  
-        print(f"Existing medicines: {existing_medicines}")
-        return jsonify(message="Showing existing medicines.", medicines=existing_medicines)
-    except Exception as e:
-        print(f"Error showing medicines: {e}")
-        return jsonify(error=f"Failed to show medicines due to: {str(e)}"), 500
+    medicines = get_all_medicines_with_ids()  
+    return jsonify({
+        'success': True,
+        'medicine_items': medicines
+    })
 
 
 @app.route('/medicine-details', methods=['POST'])
 def medicine_details():
     try:
         data = request.get_json()
-        name = data.get('name')
-        if not name:
-            return jsonify(error="No medicine name provided."), 400
-        medicine = get_medicine_by_name(name)
+        medicine_id = data.get('medicine_id')
+        if not medicine_id:
+            return jsonify(error="No medicine ID provided."), 400
+        medicine = get_medicine_by_id(medicine_id)
         if not medicine:
             return jsonify(error="Medicine not found."), 404
         return jsonify(medicine)
@@ -81,29 +78,51 @@ def request_myhealthkit():
     except Exception as e:
         return jsonify(error=f"Failed to request a MyHealthKit due to: {str(e)}"), 500
 
-@app.route('/select-medicine', methods=['POST'])
-def select_medicine():
-    print("Releasing the selected medicine...")
+
+@app.route('/delete-medicine', methods=['POST'])
+def delete_medicine():
+    print("Deleting the medicine...")
     try:
-        # Substracts selected medicine by the user
         data = request.get_json()
         medicine_id = data.get('medicine_id')
 
-        # Server validation
+        # Basic validation
         if not medicine_id:
             return jsonify(error="Missing 'medicine_id' in request."), 400
-        
-        # Checks if the medicine selected actually exists
-        if (check_existing_medicine(medicine_id)):
-            # Releases the medicine
-            #release_medicine(medicine_id)
-            return jsonify(message=f"Medicine '{medicine_id}' released successfully.")
-        else:
-            return jsonify(error="Medicine does not exists."), 404
-        
+
+        # Delete the medicine from the database
+        del_medicine(medicine_id)
+        print(f"Medicine with ID '{medicine_id}' deleted from database.")
+        return jsonify(message=f"Medicine with ID '{medicine_id}' deleted successfully.")
+
     except Exception as e:
-        print(f"Error releasing medicine: {e}")
-        return jsonify(error=f"Failed to release medicine due to: {str(e)}"), 500
+        print(f"Error deleting medicine: {e}")
+        return jsonify(error=f"Failed to delete medicine due to: {str(e)}"), 500
+
+
+@app.route('/select-medicine', methods=['POST'])
+def select_medicine():
+    print("Selecting the medicine...")
+    try:
+        data = request.get_json()
+        medicine_id = data.get('medicine_id')
+        # Basic validation
+        if not medicine_id:
+            return jsonify(error="Missing 'medicine_id' in request."), 400
+
+        # Obtain the position of the medicine
+        position = get_position_medicine(medicine_id)
+        if position is None:
+            return jsonify(error="Medicine does not exist."), 404
+        
+        execute_spin_wheel(position)
+
+        print(f"Medicine '{medicine_id}' found at position {position}")
+        return jsonify(message=f"Medicine '{medicine_id}' selected at position {position}.")
+
+    except Exception as e:
+        print(f"Error selecting medicine: {e}")
+        return jsonify(error=f"Failed to select medicine due to: {str(e)}"), 500
 
 @app.route('/add-medicine', methods=['POST'])
 def add_medicine():
@@ -185,8 +204,6 @@ def add_medicine():
                 # !!! HARDWARE INTERACTION !!!
                 execute_spin_wheel(position)
                 
-                remaining_units = 10
-
                 add_medicine_to_db(
                     name=medicine_info.get("name", ""),
                     description=medicine_info.get("description", ""),

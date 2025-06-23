@@ -5,11 +5,16 @@ import { styles } from '@hooks/styles';
 
 type Props = {
   onBack: () => void;
-  onShowMedicineDetails: (medicineName: string) => void; // Solo el nombre
+  onShowMedicineDetails: (medicineId: string) => void; // ahora es ID, no name
+};
+
+type MedicineItem = {
+  id: string;
+  name: string;
 };
 
 export default function ShowMedicinesScreen({ onBack, onShowMedicineDetails }: Props) {
-  const [medicines, setMedicines] = useState<string[]>([]);
+  const [medicines, setMedicines] = useState<MedicineItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
@@ -17,8 +22,8 @@ export default function ShowMedicinesScreen({ onBack, onShowMedicineDetails }: P
       setLoading(true);
       try {
         const response = await sendMessageToRobot(Action2Robot.ShowMedicines);
-        if (response.success && response.medicines) {
-          setMedicines(response.medicines);
+        if (response.success && response.medicine_items) {
+          setMedicines(response.medicine_items); // usa el nuevo campo
         } else {
           Alert.alert('Error', 'Could not load medicines.');
         }
@@ -33,8 +38,8 @@ export default function ShowMedicinesScreen({ onBack, onShowMedicineDetails }: P
     fetchMedicines();
   }, []);
   
-  const handleSelectMedicine = (medicine: string) => {
-    onShowMedicineDetails(medicine);
+  const handleSelectMedicine = (medicineId: string) => {
+    onShowMedicineDetails(medicineId); // pasamos el ID
   };
 
   if (loading) {
@@ -51,13 +56,13 @@ export default function ShowMedicinesScreen({ onBack, onShowMedicineDetails }: P
         {medicines.length === 0 ? (
           <Text>No medicines available.</Text>
         ) : (
-          medicines.map((medicine, index) => (
+          medicines.map((medicine) => (
             <Pressable
-              key={index}
+              key={medicine.id}
               style={styles.customButton}
-              onPress={() => handleSelectMedicine(medicine)}
+              onPress={() => handleSelectMedicine(medicine.id)}
             >
-              <Text style={styles.buttonText}>{medicine}</Text>
+              <Text style={styles.buttonText}>{medicine.name}</Text>
             </Pressable>
           ))
         )}
