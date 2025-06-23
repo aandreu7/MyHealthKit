@@ -1,25 +1,66 @@
 import re
 import subprocess
+import base64
+import requests
+import json
 import wave
 from PIL import Image
 import json
 from vosk import Model, KaldiRecognizer
 import io
 import os
-import requests
 from together import Together
 import edge_tts
 import pygame
 import asyncio
 import sqlite3
 import google.generativeai as genai
-
-
+import time
 
 
 def release_medicine(medicine_id):
     pass
 
+def execute_spin_wheel(position: int):
+    """
+    !!! Hardware Interaction !!!
+    Spins wheel in order to place a void cavity so user can insert a medicine.
+    """
+    try:
+        #subprocess.run(['python3', 'spin_wheel.py', '3'], check=True)
+        print("spin_wheel.py successfully executed.")
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing spin_wheel.py: {e}")
+        raise RuntimeError("Failed to execute spin_wheel.py", e)
+    
+def find_empty_position() -> int:
+    """
+    Retrieves all fields except remaining_units for a medicine given its name.
+    Returns a dict with the medicine's details or None if not found.
+    """
+    conn = sqlite3.connect("../database/pharmacy.db")
+    cursor = conn.cursor()
+
+    sql = """
+    SELECT position
+    FROM medicines
+    ORDER BY position ASC
+    """
+
+    cursor.execute(sql)
+    results = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    position = 0
+    for medicine in results:
+        if medicine[0] > position:
+            return position
+        else:
+            position += 1
+    
+    # No available positions
+    return -1
 
 def get_medicine_by_name(name: str):
     """
@@ -73,7 +114,6 @@ def add_medicine_to_db(name: str, description: str, url_prospect: str, symptoms:
     cursor.close()
     conn.close()
 
-
 def check_existing_medicine(medicine_id) -> bool:
     # Create a new connection and cursor inside the function
     conn = sqlite3.connect("../database/pharmacy.db")
@@ -104,6 +144,27 @@ def get_all_medicines() -> list:
     conn.close()
 
     return existing_medicines
+
+def ocr_google_api(image_path):
+    url = f"https://vision.googleapis.com/v1/images:annotate?key={os.getenv("OCR_API_KEY")}"
+    headers = {"Content-Type": "application/json"}
+    with open(image_path, "rb") as img_file:
+        base64_image = base64.b64encode(img_file.read()).decode("utf-8")
+    body = {
+        "requests": [
+            {
+                "image": {"content": base64_image},
+                "features": [{"type": "TEXT_DETECTION"}]
+            }
+        ]
+    }
+    response = requests.post(url, headers=headers, data=json.dumps(body))
+    result = response.json()
+    try:
+        return result['responses'][0]['fullTextAnnotation']['text']
+    except KeyError:
+        print("No text detected or API error:", result)
+        return ""
 
 def ocr_space_file(filename):
     """
@@ -184,8 +245,8 @@ def format_human_readable(text: str) -> str:
 def validate_medicine_info(medicine_info: dict) -> bool:
     if type(medicine_info) != dict:
         return False
-    for value in medicine_info.values():
-        if value==None or value=="None" or not value:
+    for key, value in medicine_info.items():
+        if key!="url_prospect" and (value==None or value=="None" or not value):
             return False
     return True
 
