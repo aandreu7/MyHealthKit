@@ -47,6 +47,7 @@ export const sendMessageToRobot = async (
   url_prospect?: string,
   symptoms?: string,
   contraindications?: string,
+  audioUri?: string,
 }> => {
   try {
     const ping = await fetchWithTimeout(ROBOT_IP, {});
@@ -154,7 +155,12 @@ export const sendMessageToRobot = async (
 
       switch (action) {
         case Action2Robot.StartDiagnosis:
-          return { success: true, message: dataAnswer.message, medicines: dataAnswer.medicines };
+          return {
+            success: true,
+            audioUri: dataAnswer.audioUri,
+            message: dataAnswer.message,
+            medicines: dataAnswer.medicines
+          };
         case Action2Robot.AddMedicine:
           return { success: true, message: dataAnswer.message };
         case Action2Robot.ShowMedicines:

@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
@@ -7,7 +7,6 @@ from services import *
 
 # Create a Flask application instance
 app = Flask(__name__)
-import re
 
 """
 !!! Important and clarifying information about Python decorators used in this code !!!
@@ -35,6 +34,10 @@ and the function defined under it (start_diagnosis) is executed.
 def index():
     # Returns a JSON response with a status of "OK"
     return jsonify(status="OK")
+
+@app.route('/diagnosis-output.mp3')
+def serve_audio():
+    return send_file("diagnosis-output.mp3", mimetype="audio/mpeg")
 
 @app.route('/show-medicines', methods=['GET'])
 def show_medicines():
@@ -114,43 +117,40 @@ def add_medicine():
     print(f"Medicine photo saved at {save_path}")
 
     try:
-        resize_image_if_needed(save_path)
-        extracted_text = ocr_space_file(save_path)
+        #resize_image_if_needed(save_path)
+        #extracted_text = ocr_space_file(save_path)
+        extracted_text = ocr_google_api(save_path)
         print(f"OCR extracted text: {extracted_text}")
 
         if extracted_text.strip():
             message = [
                 {
                     "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": (
-                                f"I scanned a real medicine box and these are the detected words: \"{extracted_text.strip()}\".\n\n"
-                                "TASK:\n"
-                                "1. Identify the real active ingredient (e.g., 'Paracetamol', 'Amoxicillin') from the provided words.\n"
-                                "2. Based on that name, return a structured JSON with:\n"
-                                "- name: (exact name of the active drug)\n"
-                                "- description: (short drug category or therapeutic use)\n"
-                                "- symptoms: (main symptoms or conditions it treats)\n"
-                                "- contraindications: (known contraindications or risks)\n"
-                                "- url_prospect: (must be from https://www.medicines.org.uk/emc/product/<number>/smpc, or null)\n\n"
-                                "IMPORTANT:\n"
-                                "- The response must be based ONLY on the name found in the extracted words.\n"
-                                "- Ignore brand names (e.g. Numark, Bayer).\n"
-                                "- Be medically accurate and concise.\n"
-                                "- Return only a valid JSON. No explanation or extra text.\n\n"
-                                "EXAMPLE RESPONSE:\n"
-                                "{\n"
-                                "  \"name\": \"Ibuprofen\",\n"
-                                "  \"description\": \"Non-steroidal anti-inflammatory drug\",\n"
-                                "  \"symptoms\": \"pain, inflammation, fever\",\n"
-                                "  \"contraindications\": \"gastric ulcer, kidney disease\",\n"
-                                "  \"url_prospect\": \"https://www.medicines.org.uk/emc/product/5678/smpc\"\n"
-                                "}"
-                            )
-                        }
-                    ]
+                    "content": 
+                    (
+                        f"I scanned a real medicine box and these are the detected words: \"{extracted_text.strip()}\".\n\n"
+                        "TASK:\n"
+                        "1. Identify the real active ingredient (e.g., 'Paracetamol', 'Amoxicillin') from the provided words.\n"
+                        "2. Based on that name, return a structured JSON with:\n"
+                        "- name: (exact name of the active drug)\n"
+                        "- description: (short drug category or therapeutic use)\n"
+                        "- symptoms: (main symptoms or conditions it treats)\n"
+                        "- contraindications: (known contraindications or risks)\n"
+                        "- url_prospect: (must be from https://www.medicines.org.uk/emc/product/<number>/smpc, or null)\n\n"
+                        "IMPORTANT:\n"
+                        "- The response must be based ONLY on the name found in the extracted words.\n"
+                        "- Ignore brand names (e.g. Numark, Bayer).\n"
+                        "- Be medically accurate and concise.\n"
+                        "- Return only a valid JSON. No explanation or extra text.\n\n"
+                        "EXAMPLE RESPONSE:\n"
+                        "{\n"
+                        "  \"name\": \"Ibuprofen\",\n"
+                        "  \"description\": \"Non-steroidal anti-inflammatory drug\",\n"
+                        "  \"symptoms\": \"pain, inflammation, fever\",\n"
+                        "  \"contraindications\": \"gastric ulcer, kidney disease\",\n"
+                        "  \"url_prospect\": \"https://www.medicines.org.uk/emc/product/5678/smpc\"\n"
+                        "}"
+                    )
                 }
             ]
 
@@ -175,6 +175,16 @@ def add_medicine():
                 if not validate_medicine_info(medicine_info):
                     raise ValueError("Invalid medicine information extracted by OCR and LLM")
 
+                position = find_empty_position()
+
+                print("First free position: ", position)
+
+                if position == -1:
+                    raise RuntimeError("No available positions")
+
+                # !!! HARDWARE INTERACTION !!!
+                execute_spin_wheel(position)
+                
                 remaining_units = 10
 
                 add_medicine_to_db(
@@ -182,7 +192,8 @@ def add_medicine():
                     description=medicine_info.get("description", ""),
                     url_prospect=medicine_info.get("url_prospect", ""),
                     symptoms=medicine_info.get("symptoms", ""),
-                    contraindications=medicine_info.get("contraindications", "")
+                    contraindications=medicine_info.get("contraindications", ""),
+                    position=position
                 )
                 print("Detected medicine info:", medicine_info)
                 return jsonify(message=f"Medicine '{medicine_info.get('name', '')}' has been successfully added.")
@@ -228,21 +239,26 @@ def start_diagnosis():
 
     message = [
             {
-            "role": "system",
-            "content": "You are a doctor. When a patient asks for a diagnosis and medicine, you must follow this format exactly:\n"
-                        "1. **State a possible diagnosis** clearly, starting with 'The diagnosis could be [diagnosis]'.\n"
-                        "2. Then, **provide one or more medicines** that you think could be helpful. For each medicine:\n"
-                        "    - If the medicine is in the following list: " + str(existing_medicines) + ", say it is **available**.\n"
-                        "    - If the medicine is **not** in the list, say it is **not available currently**.\n"
-                        "The list of available medicines is: " + str(existing_medicines) + ".\n"
-                        "Only provide the diagnosis and the medicines. No additional information or suggestions are allowed.\n"
-                        "Be sure to follow this format precisely. Do not deviate from it in any way.\n"
-                        "Finally, at the end of the message, provide **ONLY** the list of medicines that are available from the provided list, in the following format:\n"
-                        "['medicine1', 'medicine2', 'medicine3', ...]\n"
-                        "This **list** must appear **only at the very end** of your response. If list is void, provide [] at **at the very end**.\n"
-                        "Respond in the following language: " + definedLanguage
+                "role": "system",
+                "content": (
+                    "You are a doctor. When a patient asks for a diagnosis and medicine, follow this format:\n\n"
+                    "1. **State a possible diagnosis**, starting with: 'The diagnosis could be [diagnosis].'\n"
+                    "2. **Then mention only the medicines that are available**, grouped naturally in a single sentence like:\n"
+                    "'[medicine1], [medicine2] and [medicine3] are available.'\n"
+                    "Do not say 'is available' for each medicine separately.\n"
+                    "3. Do **not** mention any medicine that is not in this list: " + str(existing_medicines) + "\n"
+                    "4. Do **not** say anything like 'is not available' or similar. Just ignore the unavailable ones.\n\n"
+                    "At the end of the message, include **only the list of available medicines**, in the exact format:\n"
+                    "['medicine1', 'medicine2'] — on a new line and nothing else.\n"
+                    "If the list is empty, show [].\n\n"
+                    "Respond in this language: " + definedLanguage + ".\n"
+                    "Stick to this format strictly and keep the response short and to the point."
+                )
             },
-            { "role": "user", "content": transcribed_text }
+            {
+                "role": "user",
+                "content": transcribed_text
+            }
     ]
 
     # Makes a call to the OpenRouter API to get a response based on the provided message
@@ -267,7 +283,13 @@ def start_diagnosis():
         os.remove("last_request.m4a")
     """
 
-    return jsonify(message="Diagnosis completed.\n" + answer, medicines=medicines_suggested)
+    audio_url = f"http://{request.host}/diagnosis-output.mp3"
+    return jsonify({
+        "success": True,
+        "message": "Diagnosis completed.\n" + answer,
+        "medicines": medicines_suggested,
+        "audioUri": audio_url
+    })
 
 if __name__ == '__main__':
 

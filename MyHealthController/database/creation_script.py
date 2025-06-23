@@ -2,14 +2,15 @@ import sqlite3
 
 def insert_data_example(cursor):
     cursor.execute("""
-    INSERT INTO medicines (name, description, remaining_units, url_prospect, symptoms, contraindications) VALUES
+    INSERT INTO medicines (name, description, remaining_units, url_prospect, symptoms, contraindications, position) VALUES
         (
         'Paracetamol',
         'Used to treat mild to moderate pain and fever.',
         100,
         'https://www.medicines.org.uk/emc/product/1234/smpc',
         'Headache, Fever, Muscle pain, Toothache',
-        'Liver disease, Alcoholism'
+        'Liver disease, Alcoholism',
+        0
         ),
         (
         'Ibuprofen',
@@ -17,15 +18,17 @@ def insert_data_example(cursor):
         80,
         'https://www.medicines.org.uk/emc/product/5678/smpc',
         'Headache, Back pain, Menstrual cramps, Arthritis',
-        'Stomach ulcers, Kidney disease, Asthma'
+        'Stomach ulcers, Kidney disease, Asthma',
+        1
         ),
         (
         'Amoxicillin',
         'Antibiotic used to treat bacterial infections.',
-        0,
+        1,
         'https://www.medicines.org.uk/emc/product/91011/smpc',
         'Ear infection, Pneumonia, Urinary tract infection',
-        'Penicillin allergy, Mononucleosis'
+        'Penicillin allergy, Mononucleosis',
+        2
         ),
         (
         'Aspirin',
@@ -33,7 +36,8 @@ def insert_data_example(cursor):
         75,
         'https://www.medicines.org.uk/emc/product/1213/smpc',
         'Headache, Inflammation, Chest pain',
-        'Bleeding disorders, Stomach ulcers, Pregnancy'
+        'Bleeding disorders, Stomach ulcers, Pregnancy',
+        5
         ),
         (
         'Loratadine',
@@ -41,7 +45,8 @@ def insert_data_example(cursor):
         60,
         'https://www.medicines.org.uk/emc/product/1415/smpc',
         'Sneezing, Runny nose, Itchy eyes, Hives',
-        'Liver disease, Children under 2'
+        'Liver disease, Children under 2',
+        7
     );
     """)
 
@@ -56,10 +61,11 @@ if __name__=="__main__":
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         description TEXT,
-        remaining_units INTEGER DEFAULT 0,
+        remaining_units INTEGER DEFAULT 10,
         url_prospect TEXT,
         symptoms TEXT,
-        contraindications TEXT
+        contraindications TEXT,
+        position INTEGER NOT NULL
     )
     """)
 
