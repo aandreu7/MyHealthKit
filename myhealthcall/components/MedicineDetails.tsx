@@ -140,7 +140,7 @@ export default function MedicineDetails({ medicineId, onBack }: Props) {
         <Pressable
           style={[
             styles.customButton,
-            { width: 180, backgroundColor: '#22c55e' } // verde
+            { width: 180, backgroundColor: '#22c55e' }
           ]}
           onPress={async () => {
             if (!details?.name) return;
@@ -167,7 +167,7 @@ export default function MedicineDetails({ medicineId, onBack }: Props) {
         <Pressable
           style={[
             styles.customButton,
-            { width: 180, backgroundColor: '#f87171' } // rojo claro
+            { width: 180, backgroundColor: '#f87171' }
           ]}
           onPress={async () => {
             if (!details?.name) return;
@@ -196,7 +196,6 @@ export default function MedicineDetails({ medicineId, onBack }: Props) {
   );
 }
 
-// Helper para mostrar cada campo
 function InfoRow({ label, value }: { label: string; value?: string }) {
   return (
     <View style={{ marginBottom: 10 }}>
