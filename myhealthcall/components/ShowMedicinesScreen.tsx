@@ -5,7 +5,7 @@ import { styles } from '@hooks/styles';
 
 type Props = {
   onBack: () => void;
-  onShowMedicineDetails: (medicineId: string) => void; // ahora es ID, no name
+  onShowMedicineDetails: (medicineId: string) => void;
 };
 
 type MedicineItem = {
@@ -23,7 +23,7 @@ export default function ShowMedicinesScreen({ onBack, onShowMedicineDetails }: P
       try {
         const response = await sendMessageToRobot(Action2Robot.ShowMedicines);
         if (response.success && response.medicine_items) {
-          setMedicines(response.medicine_items); // usa el nuevo campo
+          setMedicines(response.medicine_items);
         } else {
           Alert.alert('Error', 'Could not load medicines.');
         }
@@ -39,7 +39,7 @@ export default function ShowMedicinesScreen({ onBack, onShowMedicineDetails }: P
   }, []);
   
   const handleSelectMedicine = (medicineId: string) => {
-    onShowMedicineDetails(medicineId); // pasamos el ID
+    onShowMedicineDetails(medicineId);
   };
 
   
