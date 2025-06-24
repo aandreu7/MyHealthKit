@@ -19,3 +19,4 @@ The repository associated with this project hosts the complete software architec
 * **🧠 Controller Software:** This component, executed on the Raspberry Pi 4, implements the SLAM algorithm for autonomous navigation, manages communication with the user via voice and the application, and controls the drug storage and dispensing system, including inventory management.
 
 In summary, this project represents an innovative solution for optimizing pharmaceutical logistics in medical settings, offering an autonomous, remotely controlled system capable of responding to the medication demands of healthcare professionals efficiently and promptly.
+f
