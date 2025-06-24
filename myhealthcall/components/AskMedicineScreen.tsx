@@ -153,4 +153,5 @@ export default function AskMedicineScreen({ onBack, setScreen }: Props) {
       )}
     </ScrollView>
   );
+  
 }

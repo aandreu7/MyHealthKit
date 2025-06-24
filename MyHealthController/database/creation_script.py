@@ -2,11 +2,10 @@ import sqlite3
 
 def insert_data_example(cursor):
     cursor.execute("""
-    INSERT INTO medicines (name, description, remaining_units, url_prospect, symptoms, contraindications, position) VALUES
+    INSERT INTO medicines (name, description, url_prospect, symptoms, contraindications, position) VALUES
         (
         'Paracetamol',
         'Used to treat mild to moderate pain and fever.',
-        100,
         'https://www.medicines.org.uk/emc/product/1234/smpc',
         'Headache, Fever, Muscle pain, Toothache',
         'Liver disease, Alcoholism',
@@ -15,7 +14,6 @@ def insert_data_example(cursor):
         (
         'Ibuprofen',
         'Non-steroidal anti-inflammatory drug (NSAID) for pain, inflammation and fever.',
-        80,
         'https://www.medicines.org.uk/emc/product/5678/smpc',
         'Headache, Back pain, Menstrual cramps, Arthritis',
         'Stomach ulcers, Kidney disease, Asthma',
@@ -24,7 +22,6 @@ def insert_data_example(cursor):
         (
         'Amoxicillin',
         'Antibiotic used to treat bacterial infections.',
-        1,
         'https://www.medicines.org.uk/emc/product/91011/smpc',
         'Ear infection, Pneumonia, Urinary tract infection',
         'Penicillin allergy, Mononucleosis',
@@ -33,7 +30,6 @@ def insert_data_example(cursor):
         (
         'Aspirin',
         'Used for pain relief, anti-inflammation, and reducing risk of heart attack.',
-        75,
         'https://www.medicines.org.uk/emc/product/1213/smpc',
         'Headache, Inflammation, Chest pain',
         'Bleeding disorders, Stomach ulcers, Pregnancy',
@@ -42,7 +38,6 @@ def insert_data_example(cursor):
         (
         'Loratadine',
         'Antihistamine used to treat allergies.',
-        60,
         'https://www.medicines.org.uk/emc/product/1415/smpc',
         'Sneezing, Runny nose, Itchy eyes, Hives',
         'Liver disease, Children under 2',
@@ -61,7 +56,6 @@ if __name__=="__main__":
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         description TEXT,
-        remaining_units INTEGER DEFAULT 10,
         url_prospect TEXT,
         symptoms TEXT,
         contraindications TEXT,

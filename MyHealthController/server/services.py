@@ -24,10 +24,10 @@ def release_medicine(medicine_id):
 def execute_spin_wheel(position: int):
     """
     !!! Hardware Interaction !!!
-    Spins wheel in order to place a void cavity so user can insert a medicine.
+    Spins the wheel to the specified position.
     """
     try:
-        #subprocess.run(['python3', 'spin_wheel.py', '3'], check=True)
+        # subprocess.run(['python3', 'spin_wheel.py', str(position)], check=True)
         print("spin_wheel.py successfully executed.")
     except subprocess.CalledProcessError as e:
         print(f"Error executing spin_wheel.py: {e}")
@@ -51,55 +51,60 @@ def find_empty_position() -> int:
     results = cursor.fetchall()
     cursor.close()
     conn.close()
+        
+    if not results:
+        return 0
 
-    position = 0
-    for medicine in results:
-        if medicine[0] > position:
-            return position
-        else:
-            position += 1
-    
-    # No available positions
+    occupied_positions = set(pos[0] for pos in results)
+    for i in range(len(occupied_positions) + 1):
+        if i not in occupied_positions:
+            return i
+
     return -1
 
-def get_medicine_by_name(name: str):
+def get_medicine_by_id(medicine_id: int):
     """
-    Retrieves all fields except remaining_units for a medicine given its name.
+    Retrieves all fields for a medicine given its ID.
     Returns a dict with the medicine's details or None if not found.
     """
     conn = sqlite3.connect("../database/pharmacy.db")
     cursor = conn.cursor()
 
     sql = """
-    SELECT name, description, url_prospect, symptoms, contraindications
+    SELECT id, name, description, url_prospect, symptoms, contraindications, position
     FROM medicines
-    WHERE LOWER(name) = LOWER(?)
+    WHERE id = ?
     """
 
-    cursor.execute(sql, (name,))
+    cursor.execute(sql, (medicine_id,))
     row = cursor.fetchone()
     cursor.close()
     conn.close()
 
-    if row and len(row) == 5:
+    if row and len(row) == 7:
         return {
-            'name': row[0],
-            'description': row[1],
-            'url_prospect': row[2],
-            'symptoms': row[3],
-            'contraindications': row[4]
+            'id': row[0],
+            'name': row[1],
+            'description': row[2],
+            'url_prospect': row[3],
+            'symptoms': row[4],
+            'contraindications': row[5],
+            'position': row[6]
         }
     else:
         return None
 
-def add_medicine_to_db(name: str, description: str, url_prospect: str, symptoms: str, contraindications: str):
+def add_medicine_to_db(name: str, description: str, url_prospect: str, symptoms: str, contraindications: str, position: int):
+    """
+    Adds a new medicine to the database, including its position.
+    """
     conn = sqlite3.connect("../database/pharmacy.db")
     cursor = conn.cursor()
 
     sql = """
     INSERT INTO medicines
-    (name, description, url_prospect, symptoms, contraindications)
-    VALUES (?, ?, ?, ?, ?)
+    (name, description, url_prospect, symptoms, contraindications, position)
+    VALUES (?, ?, ?, ?, ?, ?)
     """
 
     cursor.execute(sql, (
@@ -107,36 +112,36 @@ def add_medicine_to_db(name: str, description: str, url_prospect: str, symptoms:
         description,
         url_prospect,
         symptoms,
-        contraindications
+        contraindications,
+        position
     ))
 
     conn.commit()
     cursor.close()
     conn.close()
 
-def check_existing_medicine(medicine_id) -> bool:
-    # Create a new connection and cursor inside the function
+
+def get_position_medicine(medicine_id: int) -> int | None:
+    """
+    Returns the position of a medicine by its ID.
+    If the medicine does not exist, returns None.
+    """
     conn = sqlite3.connect("../database/pharmacy.db")
     cursor = conn.cursor()
-
-    sql_statement = "SELECT count(*) FROM MEDICINES m WHERE m.remaining_units>0 AND m.id=?"
-
-    medicineExists = False
-
-    if cursor.execute(sql_statement, (medicine_id)).fetchone()[0] > 0:
-        medicineExists = True
-
-    # Close the cursor and connection once the query is done
+    sql_statement = "SELECT position FROM MEDICINES WHERE id = ?"
+    result = cursor.execute(sql_statement, (medicine_id,)).fetchone()
     cursor.close()
     conn.close()
 
-    return medicineExists
+    if result:
+        return result[0]
+    return None
 
 def get_all_medicines() -> list:
     conn = sqlite3.connect("../database/pharmacy.db")
     cursor = conn.cursor()
 
-    sql_statement = "SELECT name FROM MEDICINES WHERE remaining_units > 0"
+    sql_statement = "SELECT name FROM MEDICINES"
 
     existing_medicines = [row[0] for row in cursor.execute(sql_statement).fetchall()]
     print(f"Existing medicines fetched: {existing_medicines}")
@@ -144,6 +149,17 @@ def get_all_medicines() -> list:
     conn.close()
 
     return existing_medicines
+
+def get_all_medicines_with_ids():
+    conn = sqlite3.connect("../database/pharmacy.db")
+    cursor = conn.cursor()
+
+    sql = "SELECT id, name FROM medicines ORDER BY id ASC"
+    results = [{'id': str(row[0]), 'name': row[1]} for row in cursor.execute(sql).fetchall()]
+
+    cursor.close()
+    conn.close()
+    return results
 
 def ocr_google_api(image_path):
     url = f"https://vision.googleapis.com/v1/images:annotate?key={os.getenv("OCR_API_KEY")}"
@@ -288,6 +304,13 @@ def speak(text, language = "en-US"):
     # Play the generated audio file
     play_mp3("diagnosis-output.mp3")
 
+def del_medicine(medicine_id: int):
+    conn = sqlite3.connect("../database/pharmacy.db")
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM MEDICINES WHERE id = ?", (medicine_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
 
 def transcribe_audio(file, *, model=None, language="en-US") -> str:
     """

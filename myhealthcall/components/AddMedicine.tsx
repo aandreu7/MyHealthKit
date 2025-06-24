@@ -103,5 +103,6 @@ export default function AddMedicine({ onBack }: Props) {
       </View>
     </View>
   );
+  
 }
 

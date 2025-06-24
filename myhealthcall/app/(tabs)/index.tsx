@@ -1,74 +1,91 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import { useRef, useState } from 'react';
+import { Text, View, Image, Pressable } from 'react-native';
+import AskMedicineScreen from '@components/AskMedicineScreen';
+import RequestAMyHealthKitScreen from '@components/RequestAMyHealthKit';
+import ShowMedicinesScreen from '@components/ShowMedicinesScreen';
+import AddMedicine from '@components/AddMedicine';
+import MedicineDetails from '@components/MedicineDetails'; 
+import { styles } from '@hooks/styles';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+type Screen =
+  | 'home'
+  | 'askMedicine'
+  | 'addMedicine'
+  | 'showMedicines'
+  | 'requestAMyHealthKit'
+  | 'medicineDetails';
 
-export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
+export default function App() {
+  const [screen, setScreen] = useState<Screen>('home');
+  const [selectedMedicineId, setSelectedMedicineId] = useState<string | null>(null);
+  const hasScannedRef = useRef(false);
+
+  let content;
+
+  switch (screen) {
+    case 'home':
+      content = (
+        <View style={styles.container}>
+          <Image
+            source={require('@assets/images/logo.jpg')}
+            style={styles.image}
+          />
+          <View style={styles.buttonContainer}>
+            <Pressable style={styles.customButton} onPress={() => setScreen('requestAMyHealthKit')}>
+              <Text style={styles.buttonText}>Request a MyHealthKit</Text>
+            </Pressable>
+            <Pressable style={styles.customButton} onPress={() => setScreen('askMedicine')}>
+              <Text style={styles.buttonText}>Ask for a medicine</Text>
+            </Pressable>
+            <Pressable style={styles.customButton} onPress={() => setScreen('addMedicine')}>
+              <Text style={styles.buttonText}>Add a medicine</Text>
+            </Pressable>
+          </View>
+        </View>
+      );
+      break;
+
+    case 'requestAMyHealthKit':
+      content = <RequestAMyHealthKitScreen onBack={() => setScreen('home')} />;
+      break;
+
+    case 'askMedicine':
+      content = <AskMedicineScreen onBack={() => setScreen('home')} setScreen={setScreen} />;
+      break;
+
+    case 'addMedicine':
+      content = <AddMedicine onBack={() => setScreen('home')} />;
+      break;
+
+    case 'showMedicines':
+      content = (
+        <ShowMedicinesScreen
+          onBack={() => setScreen('home')}
+          onShowMedicineDetails={(medicineId: string) => {
+            console.log('➡️ Selected medicineId:', medicineId); // ← AÑADE ESTO
+            setSelectedMedicineId(medicineId);
+            setTimeout(() => setScreen('medicineDetails'), 0);
+          }}
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12'
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
-  );
-}
+      );
+      break;
 
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});
+    case 'medicineDetails':
+      content = (
+        <MedicineDetails
+          medicineId={selectedMedicineId}
+          onBack={() => setScreen('showMedicines')}
+        />
+      );
+      break;
+
+    default:
+      content = (
+        <View style={styles.container}>
+          <Text>Screen not found</Text>
+        </View>
+      );
+  }
+
+  return <View style={{ flex: 1 }}>{content}</View>;
+}

@@ -4,22 +4,22 @@ import { sendMessageToRobot, Action2Robot } from '@/services/sendMessage2Robot';
 import { styles } from '@hooks/styles';
 
 type Props = {
-  medicineName: string | null;
+  medicineId: string | null;
   onBack: () => void;
 };
 
-export default function MedicineDetails({ medicineName, onBack }: Props) {
+export default function MedicineDetails({ medicineId, onBack }: Props) {
   const [loading, setLoading] = useState(true);
   const [details, setDetails] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!medicineName) return;
+    if (!medicineId) return;
     const fetchDetails = async () => {
       setLoading(true);
       setError(null);
       try {
-        const response = await sendMessageToRobot(Action2Robot.MedicineDetails, medicineName);
+        const response = await sendMessageToRobot(Action2Robot.MedicineDetails, medicineId);
         if (response.success) {
           setDetails(response);
         } else {
@@ -32,9 +32,9 @@ export default function MedicineDetails({ medicineName, onBack }: Props) {
       }
     };
     fetchDetails();
-  }, [medicineName]);
+  }, [medicineId]);
 
-  if (!medicineName) {
+  if (!medicineId) {
     return (
       <View style={styles.center}>
         <Text style={styles.message}>No medicine selected.</Text>
@@ -131,9 +131,67 @@ export default function MedicineDetails({ medicineName, onBack }: Props) {
         </View>
       </View>
 
-      <Pressable style={[styles.customButton, { width: 180 }]} onPress={onBack}>
-        <Text style={styles.buttonText}>Back</Text>
-      </Pressable>
+
+      <View style={{ gap: 12, alignItems: 'center' }}>
+        <Pressable style={[styles.customButton, { width: 180 }]} onPress={onBack}>
+          <Text style={styles.buttonText}>Back</Text>
+        </Pressable>
+
+        <Pressable
+          style={[
+            styles.customButton,
+            { width: 180, backgroundColor: '#22c55e' } // verde
+          ]}
+          onPress={async () => {
+            if (!details?.name) return;
+
+            try {
+              const res = await sendMessageToRobot(Action2Robot.SelectMedicine, details.id);
+              if (res.success) {
+                console.log("Medicine selected:", details.name);
+                onBack();
+                alert(`✅ ${details.name} selected!`);
+              } else {
+                console.error("Error selecting medicine:", res.error);
+                alert(`❌ Error: ${res.error}`);
+              }
+            } catch (e) {
+              console.error("Unexpected error:", e);
+              alert("Connection error while selecting the medicine.");
+            }
+          }}
+        >
+          <Text style={styles.buttonText}>Get Medicine</Text>
+        </Pressable>
+
+        <Pressable
+          style={[
+            styles.customButton,
+            { width: 180, backgroundColor: '#f87171' } // rojo claro
+          ]}
+          onPress={async () => {
+            if (!details?.name) return;
+
+            try {
+              const res = await sendMessageToRobot(Action2Robot.DeleteMedicine, details.id);
+              if (res.success) {
+                console.log("Medicine deleted:", details.name);
+                onBack();
+                alert(`✅ ${details.name} deleted!`);
+              } else {
+                console.error("Error deleting medicine:", res.error);
+                alert(`❌ Error: ${res.error}`);
+              }
+            } catch (e) {
+              console.error("Unexpected error:", e);
+              alert("Connection error while deleting the medicine.");
+            }
+          }}
+        >
+          <Text style={styles.buttonText}>Delete Medicine</Text>
+        </Pressable>
+      </View>
+
     </ScrollView>
   );
 }

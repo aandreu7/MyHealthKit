@@ -1,14 +1,15 @@
 import * as FileSystem from 'expo-file-system';
 
-export const ROBOT_IP = 'http://192.168.1.176:5000';
+export const ROBOT_IP = 'http://192.168.1.135:5000';
 
 export const enum Action2Robot {
   StartDiagnosis = 'start-diagnosis',
   AskMedicine = 'ask-medicine',
   AddMedicine = 'add-medicine',
   ShowMedicines = 'show-medicines',
-  ReleaseMedicine = 'release-medicine',
+  SelectMedicine = 'select-medicine',
   MedicineDetails = 'medicine-details',
+  DeleteMedicine = 'delete-medicine',
   RequestMyHealthKit = 'request-myhealthkit'
 }
 
@@ -41,6 +42,7 @@ export const sendMessageToRobot = async (
   error?: string,
   message?: string,
   medicines?: string[],
+  medicine_items?: { id: string, name: string }[],
   existing_medicines?: any,
   name?: string,
   description?: string,
@@ -48,6 +50,7 @@ export const sendMessageToRobot = async (
   symptoms?: string,
   contraindications?: string,
   audioUri?: string,
+  id?: string, 
 }> => {
   try {
     const ping = await fetchWithTimeout(ROBOT_IP, {});
@@ -63,13 +66,16 @@ export const sendMessageToRobot = async (
       case Action2Robot.AskMedicine:
         url += `/ask-medicine`;
         break;
+      case Action2Robot.DeleteMedicine: 
+        url += `/delete-medicine`;
+        break;
       case Action2Robot.AddMedicine:
         url += `/add-medicine`;
         break;
       case Action2Robot.ShowMedicines:
         url += `/show-medicines`;
         break;
-      case Action2Robot.ReleaseMedicine:
+      case Action2Robot.SelectMedicine:
         url += `/select-medicine`;
         break;
       case Action2Robot.MedicineDetails:
@@ -105,17 +111,23 @@ export const sendMessageToRobot = async (
     } else {
       if (action === Action2Robot.ShowMedicines) {
         response = await fetch(url, { method: 'GET' });
-      } else if (action === Action2Robot.ReleaseMedicine) {
+      } else if (action === Action2Robot.SelectMedicine) {
         response = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ medicine_id: message })
         });
+      } else if (action === Action2Robot.DeleteMedicine) {
+        response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ medicine_id: message }) 
+        });
       } else if (action === Action2Robot.MedicineDetails) {
         response = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: message })
+          body: JSON.stringify({ medicine_id: message })
         });
       } else {
         const headers: HeadersInit = { 'Content-Type': 'application/json' };
@@ -164,12 +176,11 @@ export const sendMessageToRobot = async (
         case Action2Robot.AddMedicine:
           return { success: true, message: dataAnswer.message };
         case Action2Robot.ShowMedicines:
-          return { success: true, message: dataAnswer.message, medicines: dataAnswer.medicines };
-        case Action2Robot.ReleaseMedicine:
-          return { success: true, message: dataAnswer.message };
+          return { success: true, medicine_items: dataAnswer.medicine_items };
         case Action2Robot.MedicineDetails:
           return {
             success: true,
+            id: dataAnswer.id,
             name: dataAnswer.name,
             description: dataAnswer.description,
             url_prospect: dataAnswer.url_prospect,
