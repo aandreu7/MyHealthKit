@@ -105,7 +105,7 @@ This section shows the laser-cut parts: methacrylate and wood for gears and stru
 
 | Methacrylate            | Image                                                               | Wood              | Image                                                                 |
 |----------------------|---------------------------------------------------------------------|-----------------------|-----------------------------------------------------------------------|
-|     Big gear            |   <img src="images/models/Parts/dxf/Methacrylate/Big_gear.png" width="200" height="150">              | Box              |   <img src="images/models/Parts/dxf/Wood/box.png" width="200" height="150">    |
+|     Big gear            |   <img src="images/models/Parts/dxf/Methacrylate/big_gear.png" width="200" height="150">              | Box              |   <img src="images/models/Parts/dxf/Wood/box.png" width="200" height="150">    |
 | Middle          |   <img src="images/models/Parts/dxf/Methacrylate/middle.png" width="200" height="150">         |  Roulette walls |   <img src="images/models/Parts/dxf/Wood/roulette_walls.png" width="200" height="150">         |
 | Small gear  |   <img src="images/models/Parts/dxf/Methacrylate/small_gear.png" width="200" height="150">           |  | 
 
