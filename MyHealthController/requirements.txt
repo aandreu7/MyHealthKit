@@ -7,4 +7,3 @@ together
 edge-tts
 pygame
 together
-google-generativeai
