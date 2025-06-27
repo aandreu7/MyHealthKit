@@ -72,6 +72,7 @@ def request_myhealthkit():
         location = validate_qr_code(qr_content)
         if location==-1:
             raise ValueError("Invalid QR code scanned")
+        
         print("MyHealthKit setting sale to: ", location)
         return jsonify(message="OK")
     
@@ -116,6 +117,9 @@ def select_medicine():
             return jsonify(error="Medicine does not exist."), 404
         
         execute_spin_wheel(position)
+        trapdoor_control(True)  # Open the trapdoor to release the medicine
+
+        
         #LA TRAMPILLA
 
         print(f"Medicine '{medicine_id}' found at position {position}")

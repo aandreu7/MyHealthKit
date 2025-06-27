@@ -57,8 +57,7 @@ To fully develop the project, we rely on a set of specific tools and dependencie
 ##### MyHealthCall
 - [![Expo](https://img.shields.io/badge/-Expo-000020?logo=expo&logoColor=white)](https://expo.dev)
 - [![React](https://img.shields.io/badge/-React-61DAFB?logo=react&logoColor=white)](https://reactjs.org)
-- [![Node.js]]
-
+- [![Node.js](https://img.shields.io/badge/-Node.js-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 
 ## Setup & Install
 ---
@@ -196,7 +195,6 @@ Another functionality available on the Home screen is *Request MyHealthKit*, whi
 - One-click navigation: At any moment, just by scanning a QR code, which can be done with only one click on the app main screen, a MyHealthKit will automatically set sail to your position.
 
 - Fully-integrated medical support: A MyHealthKit cannot only be used to store and deploy medicines, but also serves as a server able and prepared to respond to medical-related questions, give medical advices and diagnosis using a fine-tun ed LLM model through MyHealthCall app.
-
 
 ## Demonstration
 ---

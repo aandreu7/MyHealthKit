@@ -18,8 +18,31 @@ import google.generativeai as genai
 import time
 
 
-def release_medicine(medicine_id):
-    pass
+
+
+def send_robot(location: int):
+    """
+    !!! Hardware Interaction !!!
+    Sends the robot to the specified location.
+    """
+    try:
+        subprocess.run(['python3', '../SLAM/catkin_ws/src/my_slam_setup/scripts/go_to_point.py', str(location)], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing go_to_point.py: {e}")
+        raise RuntimeError("Failed to execute go_to_point.py", e)
+
+def execute_open_trapdoor(control: bool):
+    """
+    !!! Hardware Interaction !!!
+    Open/Close trapdoor to release medicine.
+    """
+    try:
+        subprocess.run(['python3', '../IO_controllers/servomotors/open_trapdoor.py', str(int(control))], check=True)
+        print("open_trapdoor.py successfully executed.")
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing open_trapdoor.py: {e}")
+        raise RuntimeError("Failed to execute open_trapdoor.py", e)
+    
 
 def execute_spin_wheel(position: int):
     """
@@ -27,7 +50,7 @@ def execute_spin_wheel(position: int):
     Spins the wheel to the specified position.
     """
     try:
-        # subprocess.run(['python3', 'spin_wheel.py', str(position)], check=True)
+        subprocess.run(['python3', '../IO_controllers/servomotors/spin_wheel.py', str(position)], check=True)
         print("spin_wheel.py successfully executed.")
     except subprocess.CalledProcessError as e:
         print(f"Error executing spin_wheel.py: {e}")
@@ -162,7 +185,8 @@ def get_all_medicines_with_ids():
     return results
 
 def ocr_google_api(image_path):
-    url = f"https://vision.googleapis.com/v1/images:annotate?key={os.getenv("OCR_API_KEY")}"
+    api_key = os.getenv("OCR_API_KEY")
+    url = "https://vision.googleapis.com/v1/images:annotate?key={"+str(api_key)+"}"
     headers = {"Content-Type": "application/json"}
     with open(image_path, "rb") as img_file:
         base64_image = base64.b64encode(img_file.read()).decode("utf-8")
