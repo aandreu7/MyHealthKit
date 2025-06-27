@@ -193,15 +193,10 @@ Another functionality available on the Home screen is *Request MyHealthKit*, whi
 
 ## Amazing Contributions
 ---
-Our project integrates key ROS Noetic tools to implement mapping, localization, and autonomous navigation. We have combined multiple ROS packages into a functional system that supports essential robot behaviors.
+- One-click navigation: At any moment, just by scanning a QR code, which can be done with only one click on the app main screen, a MyHealthKit will automatically set sail to your position.
 
-- **`rplidar_ros`**: Interfaces with the RPLidar sensor to obtain laser scan data, used for detecting obstacles and generating environment representations.
+- Fully-integrated medical support: A MyHealthKit cannot only be used to store and deploy medicines, but also serves as a server able and prepared to respond to medical-related questions, give medical advices and diagnosis using a fine-tun ed LLM model through MyHealthCall app.
 
-- **`hector_slam`**: Performs real-time SLAM without relying on wheel odometry, using only laser data. This is suitable for systems with limited onboard sensing.
-
-- **`move_base`**: Handles path planning and navigation. It processes the SLAM-generated map to compute paths and avoid obstacles while executing movement goals.
-
-This setup allows the robot to build a map of its surroundings, determine its position within that map, and navigate to target locations using ROS standard tools.
 
 ## Demonstration
 ---
