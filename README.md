@@ -102,9 +102,16 @@ roslaunch my_slam_setup myhealthkit.launch
 ---
 This section explains the software architecture, describing how the robot's modules interact to perform coordinated tasks.
 
-<img src="images/design/software.png" width="750" style="border-radius: 0%;">
-<img src="images/design/raspberry.png" width="750" style="border-radius: 0%;">
+The following scheme illustrates how user can communicate with MyHealthKit through MyHealthCall application. A user can ask for a diagnosis, the list of medicines storaged in the robot, request the presence of the robot, and ask to add and store a new medicine.
 
+The robot, as it runs a server on its controller, respond to each petition while runs SLAM continuously.
+<img src="images/design/software.png" width="750" style="border-radius: 0%;">
+
+Our project integrates ROS, which works using topics and nodes. The following diagram shows how nodes publish data on topics, so other nodes can gather input data and produce and publish new data on output topics.
+
+<img src="images/design/ROS-scheme.png" width="750" style="border-radius: 0%;">
+
+Basically, RPLidar node publishes data on /scan topic, so Hector SLAM can create the map, which is sent to Move Base node, which publishes the velocity at which each wheel should run to get to the goal.
 
 ## Hardware
 ---
