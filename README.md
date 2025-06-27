@@ -38,7 +38,7 @@ To fully develop the project, we rely on a set of specific tools and dependencie
 
 ### Tools
 * **[CoppeliaSim](https://www.coppeliarobotics.com/):** For robot simulation.  
-* **[Visual Studio Code](https://code.visualstudio.com/):** For robot development with MicroPython.  
+* **[Visual Studio Code](https://code.visualstudio.com/):** For robot development with Python.  
 * **[RViz](https://wiki.ros.org/rviz):** 3D visualization tool for ROS, useful for viewing robot models, sensor data, and planning information.  
 * **[draw.io](https://app.diagrams.net/):** Diagramming tool for designing system architectures, flowcharts, and processes.  
 * **[Fritzing](https://fritzing.org/):** Open-source tool for designing and documenting electronics and breadboard layouts.
@@ -57,6 +57,7 @@ To fully develop the project, we rely on a set of specific tools and dependencie
 ##### MyHealthCall
 - [![Expo](https://img.shields.io/badge/-Expo-000020?logo=expo&logoColor=white)](https://expo.dev)
 - [![React](https://img.shields.io/badge/-React-61DAFB?logo=react&logoColor=white)](https://reactjs.org)
+- [![Node.js](https://img.shields.io/badge/-Node.js-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 
 ## Setup & Install
 ---
@@ -83,9 +84,15 @@ So as to install all Python dependencies.
 
 - Execute MyHealthController/server/app.py using a Python3 interpreter and server will be running on port 5000 by default.
 
-- Install ROS Noetic. Only available on Ubuntu 20.04 (Docker images are published but only working on Linux devices, not working on Windows/MacOS through Docker Desktop). Follow this tutorial install and get familiarized with ROS: https://wiki.ros.org/noetic/Installation
+- Install ROS Noetic. Only available on Ubuntu 20.04 (Docker images are published but only working on Linux devices, not working on Windows/MacOS through Docker Desktop). Follow this tutorial to install and get familiarized with ROS: https://wiki.ros.org/noetic/Installation
 
-- To run SLAM and Navigation, go to /
+- To run SLAM and Navigation, go to MyHealthController/SLAM/catkin_ws and compile it executing:
+
+catkin_make
+
+- Once compiled, run ROS (RPLidar C1 + Hector SLAM + move_base) using our personalized ROS packet and launch file:
+
+roslaunch my_slam_setup myhealthkit.launch
 
 ## Software
 ---
@@ -185,15 +192,9 @@ Another functionality available on the Home screen is *Request MyHealthKit*, whi
 
 ## Amazing Contributions
 ---
-Our project integrates key ROS Noetic tools to implement mapping, localization, and autonomous navigation. We have combined multiple ROS packages into a functional system that supports essential robot behaviors.
+- One-click navigation: At any moment, just by scanning a QR code, which can be done with only one click on the app main screen, a MyHealthKit will automatically set sail to your position.
 
-- **`rplidar_ros`**: Interfaces with the RPLidar sensor to obtain laser scan data, used for detecting obstacles and generating environment representations.
-
-- **`hector_slam`**: Performs real-time SLAM without relying on wheel odometry, using only laser data. This is suitable for systems with limited onboard sensing.
-
-- **`move_base`**: Handles path planning and navigation. It processes the SLAM-generated map to compute paths and avoid obstacles while executing movement goals.
-
-This setup allows the robot to build a map of its surroundings, determine its position within that map, and navigate to target locations using ROS standard tools.
+- Fully-integrated medical support: A MyHealthKit cannot only be used to store and deploy medicines, but also serves as a server able and prepared to respond to medical-related questions, give medical advices and diagnosis using a fine-tun ed LLM model through MyHealthCall app.
 
 ## Demonstration
 ---
