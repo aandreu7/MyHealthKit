@@ -1,8 +1,0 @@
-prefix=/home/MyHealthKit/MyHealthController/SLAM/FINAL/catkin_ws/devel
-
-Name: my_slam_setup
-Description: Description of my_slam_setup
-Version: 0.0.0
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: 
