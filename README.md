@@ -38,7 +38,7 @@ To fully develop the project, we rely on a set of specific tools and dependencie
 
 ### Tools
 * **[CoppeliaSim](https://www.coppeliarobotics.com/):** For robot simulation.  
-* **[Visual Studio Code](https://code.visualstudio.com/):** For robot development with MicroPython.  
+* **[Visual Studio Code](https://code.visualstudio.com/):** For robot development with Python.  
 * **[RViz](https://wiki.ros.org/rviz):** 3D visualization tool for ROS, useful for viewing robot models, sensor data, and planning information.  
 * **[draw.io](https://app.diagrams.net/):** Diagramming tool for designing system architectures, flowcharts, and processes.  
 * **[Fritzing](https://fritzing.org/):** Open-source tool for designing and documenting electronics and breadboard layouts.
@@ -57,6 +57,8 @@ To fully develop the project, we rely on a set of specific tools and dependencie
 ##### MyHealthCall
 - [![Expo](https://img.shields.io/badge/-Expo-000020?logo=expo&logoColor=white)](https://expo.dev)
 - [![React](https://img.shields.io/badge/-React-61DAFB?logo=react&logoColor=white)](https://reactjs.org)
+- [![Node.js]]
+
 
 ## Setup & Install
 ---
@@ -83,9 +85,15 @@ So as to install all Python dependencies.
 
 - Execute MyHealthController/server/app.py using a Python3 interpreter and server will be running on port 5000 by default.
 
-- Install ROS Noetic. Only available on Ubuntu 20.04 (Docker images are published but only working on Linux devices, not working on Windows/MacOS through Docker Desktop). Follow this tutorial install and get familiarized with ROS: https://wiki.ros.org/noetic/Installation
+- Install ROS Noetic. Only available on Ubuntu 20.04 (Docker images are published but only working on Linux devices, not working on Windows/MacOS through Docker Desktop). Follow this tutorial to install and get familiarized with ROS: https://wiki.ros.org/noetic/Installation
 
-- To run SLAM and Navigation, go to /
+- To run SLAM and Navigation, go to MyHealthController/SLAM/catkin_ws and compile it executing:
+
+catkin_make
+
+- Once compiled, run ROS (RPLidar C1 + Hector SLAM + move_base) using our personalized ROS packet and launch file:
+
+roslaunch my_slam_setup myhealthkit.launch
 
 ## Software
 ---
