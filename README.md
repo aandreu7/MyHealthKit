@@ -32,7 +32,9 @@ The software architecture relies on ROS packages for robust mapping, localizatio
 
 By integrating advanced sensor fusion, intuitive software interfaces, and precision-designed hardware, MyHealthKit provides a reliable medicine management solution tailored for home or clinical environments.
 
-<img src="images/design/robot.jpg" width="750" style="border-radius: 0%;">
+<p align="center">
+  <img src="images/design/robot.jpeg" width="250" style="border-radius: 0%;">
+</p>
 
 ## Tools & Dependencies
 ---
