@@ -32,6 +32,8 @@ The software architecture relies on ROS packages for robust mapping, localizatio
 
 By integrating advanced sensor fusion, intuitive software interfaces, and precision-designed hardware, MyHealthKit provides a reliable medicine management solution tailored for home or clinical environments.
 
+<img src="images/design/robot.png" width="750" style="border-radius: 0%;">
+
 ## Tools & Dependencies
 ---
 To fully develop the project, we rely on a set of specific tools and dependencies that help us achieve the expected results.
@@ -198,7 +200,7 @@ Another functionality available on the Home screen is *Request MyHealthKit*, whi
 
 ## Demonstration
 ---
-
+[Ver video en YouTube](https://youtu.be/2AqkAf-FRpg)
 
 ## To Do
 ---
@@ -218,6 +220,7 @@ Another functionality available on the Home screen is *Request MyHealthKit*, whi
 - **Damià Turu Pérez** - Universitat Autònoma de Barcelona (UAB)
 - **Andreu Plana Joya** - Universitat Autònoma de Barcelona (UAB)
 - **Oussama Berrouhou Barrouhou** - Universitat Autònoma de Barcelona (UAB)
+- **Èric Rodríguez de Sande** - Universitat Autònoma de Barcelona (UAB)
 
 ## License
 ---
