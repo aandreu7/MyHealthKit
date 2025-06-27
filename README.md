@@ -116,7 +116,7 @@ Basically, RPLidar node publishes data on /scan topic, so Hector SLAM can create
 ## Hardware
 ---
 In this section, we describe the laser-cut parts, the 3D models used, the components table with prices, and the circuit design of MyHealthKit.
-<img src="images/design/circuit_design.png" width="750" style="border-radius: 0%;">
+
 
 ### Laser Cutting Machine
 This section shows the laser-cut parts: methacrylate and wood for gears and structural elements.
@@ -169,7 +169,7 @@ In this section, we provide an overview of the key components
 | **Total Price**                                   |           | **284.43€** |
 
 ### Circuit Design
-
+<img src="images/design/circuit_design.png" width="750" style="border-radius: 0%;">
 
 ## App Functionalities
 ---
