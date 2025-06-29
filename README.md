@@ -213,7 +213,7 @@ Another functionality available on the Home screen is *Request MyHealthKit*, whi
 
 ## Demonstration
 ---
-[link](https://youtu.be/2AqkAf-FRpg)
+[Link to visual demonstration](https://youtu.be/2AqkAf-FRpg)
 
 ## To Do
 ---
