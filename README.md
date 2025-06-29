@@ -108,14 +108,14 @@ This section explains the software architecture, describing how the robot's modu
 
 The following scheme illustrates how user can communicate with MyHealthKit through MyHealthCall application. A user can ask for a diagnosis, the list of medicines storaged in the robot, request the presence of the robot, and ask to add and store a new medicine.
 
-The robot, as it runs a server on its controller, respond to each petition while runs SLAM continuously.
+The robot, as it runs a server on its controller, responds to each petition while runs SLAM continuously.
 <img src="images/design/software.png" width="750" style="border-radius: 0%;">
 
-Our project integrates ROS, which works using topics and nodes. The following diagram shows how nodes publish data on topics, so other nodes can gather input data and produce and publish new data on output topics.
+Our project integrates ROS (Noetic), which works using topics and nodes. The following diagram shows how nodes publish data on topics, so other nodes can gather input data and produce and publish new data on output topics.
 
 <img src="images/design/ROS-scheme.png" width="750" style="border-radius: 0%;">
 
-Basically, RPLidar node publishes data on /scan topic, so Hector SLAM can create the map, which is sent to Move Base node, which publishes the velocity at which each wheel should run to get to the goal.
+Basically, RPLidar node publishes data on /scan topic, so Hector SLAM, through the implementation of a scan-matching algorithm, can create the map, which is sent to Move Base node, which publishes the velocity at which each wheel should run to get to the goal.
 
 ## Hardware
 ---
@@ -209,7 +209,7 @@ Another functionality available on the Home screen is *Request MyHealthKit*, whi
 ---
 - One-click navigation: At any moment, just by scanning a QR code, which can be done with only one click on the app main screen, a MyHealthKit will automatically set sail to your position.
 
-- Fully-integrated medical support: A MyHealthKit cannot only be used to store and deploy medicines, but also serves as a server able and prepared to respond to medical-related questions, give medical advices and diagnosis using a fine-tun ed LLM model through MyHealthCall app.
+- Fully-integrated medical support: A MyHealthKit cannot only be used to store and deploy medicines, but also serves as a server able and prepared to respond to medical-related questions, give medical advices and diagnosis using a fine-tunned LLM model through MyHealthCall app.
 
 ## Demonstration
 ---
@@ -224,6 +224,7 @@ Another functionality available on the Home screen is *Request MyHealthKit*, whi
 ## References
 ---
 - i. React. (n.d.). *React documentation*. Retrieved June 26, 2025, from https://react.dev/
+- ii. Hector SLAM. *Code and documentation*. Retrieved June 26, 2025, from https://wiki.ros.org/hector_slam
 - iii. OpenAI. (n.d.). *API reference and model documentation*. Retrieved June 26, 2025, from https://platform.openai.com/docs
 - iv. Together AI. (n.d.). *Together AI - Cloud inference and open models*. Retrieved June 26, 2025, from https://www.together.ai/
 
