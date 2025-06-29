@@ -1,3 +1,7 @@
+# MyHealthKit 🤖💊
+
+MyHealthKit is a modular robotic system designed to store, manage, and dispense medicines autonomously.
+
 ## Table of Contents
 - [Description](#description)
   - [Project Overview](#project-overview)
