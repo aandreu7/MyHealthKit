@@ -1,8 +1,8 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request, send_file
+from flask_cors import CORS
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
-import sqlite3
 from services import *
 
 # Create a Flask application instance
@@ -32,57 +32,286 @@ and the function defined under it (start_diagnosis) is executed.
 # Route for the main page (GET request)
 @app.route('/')
 def index():
-    # Return a JSON response with a status of "OK"
+    # Returns a JSON response with a status of "OK"
     return jsonify(status="OK")
+
+@app.route('/diagnosis-output.mp3')
+def serve_audio():
+    return send_file("diagnosis-output.mp3", mimetype="audio/mpeg")
+
+@app.route('/show-medicines', methods=['GET'])
+def show_medicines():
+    medicines = get_all_medicines_with_ids()  
+    return jsonify({
+        'success': True,
+        'medicine_items': medicines
+    })
+
+
+@app.route('/medicine-details', methods=['POST'])
+def medicine_details():
+    try:
+        data = request.get_json()
+        medicine_id = data.get('medicine_id')
+        if not medicine_id:
+            return jsonify(error="No medicine ID provided."), 400
+        medicine = get_medicine_by_id(medicine_id)
+        if not medicine:
+            return jsonify(error="Medicine not found."), 404
+        return jsonify(medicine)
+
+    except Exception as e:
+        print(f"Error in /medicine-details: {e}")
+        return jsonify(error="Internal server error."), 500
+
+@app.route('/request-myhealthkit', methods=['POST'])
+def request_myhealthkit():
+    try:
+        data = request.get_json()
+        qr_content = data.get("message")
+        location = validate_qr_code(qr_content)
+        if location==-1:
+            raise ValueError("Invalid QR code scanned")
+        
+        print("MyHealthKit setting sale to: ", location)
+        return jsonify(message="OK")
+    
+    except Exception as e:
+        return jsonify(error=f"Failed to request a MyHealthKit due to: {str(e)}"), 500
+
+
+@app.route('/delete-medicine', methods=['POST'])
+def delete_medicine():
+    print("Deleting the medicine...")
+    try:
+        data = request.get_json()
+        medicine_id = data.get('medicine_id')
+
+        # Basic validation
+        if not medicine_id:
+            return jsonify(error="Missing 'medicine_id' in request."), 400
+
+        # Delete the medicine from the database
+        del_medicine(medicine_id)
+        print(f"Medicine with ID '{medicine_id}' deleted from database.")
+        return jsonify(message=f"Medicine with ID '{medicine_id}' deleted successfully.")
+
+    except Exception as e:
+        print(f"Error deleting medicine: {e}")
+        return jsonify(error=f"Failed to delete medicine due to: {str(e)}"), 500
+
+
+@app.route('/select-medicine', methods=['POST'])
+def select_medicine():
+    print("Selecting the medicine...")
+    try:
+        data = request.get_json()
+        medicine_id = data.get('medicine_id')
+        # Basic validation
+        if not medicine_id:
+            return jsonify(error="Missing 'medicine_id' in request."), 400
+
+        # Obtain the position of the medicine
+        position = get_position_medicine(medicine_id)
+        if position is None:
+            return jsonify(error="Medicine does not exist."), 404
+        
+        execute_spin_wheel(position)
+        trapdoor_control(True)  # Open the trapdoor to release the medicine
+
+        
+        #LA TRAMPILLA
+
+        print(f"Medicine '{medicine_id}' found at position {position}")
+        return jsonify(message=f"Medicine '{medicine_id}' selected at position {position}.")
+
+    except Exception as e:
+        print(f"Error selecting medicine: {e}")
+        return jsonify(error=f"Failed to select medicine due to: {str(e)}"), 500
+
+@app.route('/add-medicine', methods=['POST'])
+def add_medicine():
+    print("Adding a new medicine to MyHealthKit...")
+
+    file = request.files['file']
+    filename = file.filename
+    _, ext = os.path.splitext(filename)
+    save_path = os.path.join(os.getcwd(), f"new_medicine{ext}")
+    file.save(save_path)
+    print(f"Medicine photo saved at {save_path}")
+
+    try:
+        #resize_image_if_needed(save_path)
+        #extracted_text = ocr_space_file(save_path)
+        extracted_text = ocr_google_api(save_path)
+        print(f"OCR extracted text: {extracted_text}")
+
+        if extracted_text.strip():
+            message = [
+                {
+                    "role": "user",
+                    "content": 
+                    (
+                        f"I scanned a real medicine box and these are the detected words: \"{extracted_text.strip()}\".\n\n"
+                        "TASK:\n"
+                        "1. Identify the real active ingredient (e.g., 'Paracetamol', 'Amoxicillin') from the provided words.\n"
+                        "2. Based on that name, return a structured JSON with:\n"
+                        "- name: (exact name of the active drug)\n"
+                        "- description: (short drug category or therapeutic use)\n"
+                        "- symptoms: (main symptoms or conditions it treats)\n"
+                        "- contraindications: (known contraindications or risks)\n"
+                        "- url_prospect: (must be from https://www.medicines.org.uk/emc/product/<number>/smpc, or null)\n\n"
+                        "IMPORTANT:\n"
+                        "- The response must be based ONLY on the name found in the extracted words.\n"
+                        "- Ignore brand names (e.g. Numark, Bayer).\n"
+                        "- Be medically accurate and concise.\n"
+                        "- Return only a valid JSON. No explanation or extra text.\n\n"
+                        "EXAMPLE RESPONSE:\n"
+                        "{\n"
+                        "  \"name\": \"Ibuprofen\",\n"
+                        "  \"description\": \"Non-steroidal anti-inflammatory drug\",\n"
+                        "  \"symptoms\": \"pain, inflammation, fever\",\n"
+                        "  \"contraindications\": \"gastric ulcer, kidney disease\",\n"
+                        "  \"url_prospect\": \"https://www.medicines.org.uk/emc/product/5678/smpc\"\n"
+                        "}"
+                    )
+                }
+            ]
+
+            raw_answer = get_completion(client, message).choices[0].message.content.strip()
+
+            def clean_json(raw):
+                raw = raw.strip()
+                if raw.startswith("```json"):
+                    raw = raw[len("```json"):].strip()
+                if raw.startswith("```"):
+                    raw = raw[len("```"):].strip()
+                if raw.endswith("```"):
+                    raw = raw[:-3].strip()
+                return raw
+
+            try:
+                clean_answer = clean_json(raw_answer)
+                medicine_info = json.loads(clean_answer)
+
+                print("Medicine info: ", medicine_info)
+
+                if not validate_medicine_info(medicine_info):
+                    raise ValueError("Invalid medicine information extracted by OCR and LLM")
+
+                position = find_empty_position()
+
+                print("First free position: ", position)
+
+                if position == -1:
+                    raise RuntimeError("No available positions")
+
+                # !!! HARDWARE INTERACTION !!!
+                execute_spin_wheel(position)
+                
+                add_medicine_to_db(
+                    name=medicine_info.get("name", ""),
+                    description=medicine_info.get("description", ""),
+                    url_prospect=medicine_info.get("url_prospect", ""),
+                    symptoms=medicine_info.get("symptoms", ""),
+                    contraindications=medicine_info.get("contraindications", ""),
+                    position=position
+                )
+                print("Detected medicine info:", medicine_info)
+                return jsonify(message=f"Medicine '{medicine_info.get('name', '')}' has been successfully added.")
+
+            except json.JSONDecodeError:
+                print("Failed to decode JSON from AI response:", raw_answer)
+                return jsonify(error="Could not parse a valid JSON from the AI response."), 500
+
+        else:
+            raise ValueError("OCR could not detect text properly.")
+
+    except Exception as e:
+        print(f"Error processing medicine image: {e}")
+        return jsonify(error=f"Failed to add medicine due to: {str(e)}"), 500
 
 # Route to start a diagnosis (POST request)
 @app.route('/start-diagnosis', methods=['POST'])
 def start_diagnosis():
-    # Print a message to the console indicating the diagnosis is starting
+    # Prints a message to the console indicating the diagnosis is starting
     print("Starting diagnosis on MyHealthKit...")
 
-    # Create a new connection and cursor inside the function
-    conn = sqlite3.connect("../database/pharmacy.db")
-    cursor = conn.cursor()
+    # Obtains message's body from the request
+    if 'file' not in request.files:
+        return "No file (pacient's audio) part", 400
+    file = request.files['file']
 
-    sql_statement = "SELECT m.name FROM MEDICINES m WHERE m.remaining_units>0"
-    existing_medicines = [medicine[0] for medicine in cursor.execute(sql_statement).fetchall()]
+    if file.filename == '':
+        return "File has no name or is void", 400
 
-    # Close the cursor and connection once the query is done
-    cursor.close()
-    conn.close()
+    # Saves the audio file to the current working directory with the name "last_request"
+    filename = file.filename
+    _, ext = os.path.splitext(filename)
+    save_path = os.path.join(os.getcwd(), f"last_request{ext}")
+    file.save(save_path)
+    print("File saved")
+
+    # Transcribes the audio file into text using the transcribe_audio function defined in the services.py file
+    transcribed_text = transcribe_audio(file, model=model, language=definedLanguage)
+
+    print(transcribed_text)
+
+    existing_medicines = get_all_medicines()
 
     message = [
             {
-            "role": "system",
-            "content": "You are a doctor. When a patient asks for a diagnosis and medicine, you must follow this format exactly:\n"
-                        "1. **State a possible diagnosis** clearly, starting with 'The diagnosis could be [diagnosis]'.\n"
-                        "2. Then, **provide one or more medicines** that you think could be helpful. For each medicine:\n"
-                        "    - If the medicine is in the following list: " + str(existing_medicines) + ", say it is **available**.\n"
-                        "    - If the medicine is **not** in the list, say it is **not available currently**.\n"
-                        "The list of available medicines is: " + str(existing_medicines) + ".\n"
-                        "Only provide the diagnosis and the medicines. No additional information or suggestions are allowed.\n"
-                        "Be sure to follow this format precisely. Do not deviate from it in any way.\n"
-                        "Finally, at the end of the message, provide **ONLY** the list of medicines that are available from the provided list, in the following format:\n"
-                        "['medicine1', 'medicine2', 'medicine3', ...]\n"
-                        "This **list** must appear **only at the very end** of your response."
+                "role": "system",
+                "content": (
+                    "You are a doctor. When a patient asks for a diagnosis and medicine, follow this format:\n\n"
+                    "1. **State a possible diagnosis**, starting with: 'The diagnosis could be [diagnosis].'\n"
+                    "2. **Then mention only the medicines that are available**, grouped naturally in a single sentence like:\n"
+                    "'[medicine1], [medicine2] and [medicine3] are available.'\n"
+                    "Do not say 'is available' for each medicine separately.\n"
+                    "3. Do **not** mention any medicine that is not in this list: " + str(existing_medicines) + "\n"
+                    "4. Do **not** say anything like 'is not available' or similar. Just ignore the unavailable ones.\n\n"
+                    "At the end of the message, include **only the list of available medicines**, in the exact format:\n"
+                    "['medicine1', 'medicine2'] — on a new line and nothing else.\n"
+                    "If the list is empty, show [].\n\n"
+                    "Respond in this language: " + definedLanguage + ".\n"
+                    "Stick to this format strictly and keep the response short and to the point."
+                )
             },
-            { "role": "user", "content": "My leg really really hurts and I need urgent help." }
-        ]
+            {
+                "role": "user",
+                "content": transcribed_text
+            }
+    ]
 
     # Makes a call to the OpenRouter API to get a response based on the provided message
     # The get_completion function is defined in the services.py file and is responsible for interacting with the OpenRouter API
-    answer = get_completion(client, message).choices[0].message.content
-
-    print(answer)
+    answer = get_completion(client, message, use_gemini_native=True).choices[0].message.content
+    print("Answer received: ", answer)
 
     try:
         medicines_suggested = extract_medicines_list(answer)
+        answer = format_human_readable(answer) # Cleans the text in order to be properly shown to the user
+        print("Medicines suggested: ", medicines_suggested)
+        speak(answer, definedLanguage)  # Reads (verbally) the diagnosis using the TTS function defined in the services.py file
     except ValueError as e:
         print(f"Error: {e}")
         return jsonify(error="Diagnosis was not succesfully completed.")
 
-    return jsonify(message="Diagnosis completed.\n" + answer, medicines=medicines_suggested)
+    """
+    # Remove the existing audios
+    if os.path.exists("diagnosis-output.mp3"):
+        os.remove("diagnosis-output.mp3")
+    if os.path.exists("last_request.m4a"):
+        os.remove("last_request.m4a")
+    """
+
+    audio_url = f"http://{request.host}/diagnosis-output.mp3"
+    return jsonify({
+        "success": True,
+        "message": "Diagnosis completed.\n" + answer,
+        "medicines": medicines_suggested,
+        "audioUri": audio_url
+    })
 
 if __name__ == '__main__':
 
@@ -94,12 +323,34 @@ if __name__ == '__main__':
     Once the cursor and connection aren no longer neeeded, they MUST be closed.
     """
 
+    definedLanguage = "en-US"
+
+    # Loads Vosk model
+    if definedLanguage == "en-US":
+        #model = Model("./vosk-models/vosk-model-en-us-0.22") # English
+        model = Model("./vosk-models/vosk-model-en-us-0.22-lgraph") # English (light)
+    elif definedLanguage == "es-ES":
+        model = Model("./vosk-models/vosk-model-es-0.42") # Spanish
+    else:
+        raise ValueError("Invalid language")
+
     # Set the API key and base URL for the OpenRouter API
     load_dotenv(dotenv_path="./keys.env")
+    
     client = OpenAI(
         base_url="https://openrouter.ai/api/v1",
         api_key=os.getenv("OPENROUTER_API_KEY")
     )
 
-    # Run the Flask application. Start the app, making it listen on all network interfaces (0.0.0.0) and port 5000
-    app.run(host='0.0.0.0', port=5000)
+    # Set the API key and configure Gemini API
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    genai.configure(api_key=GEMINI_API_KEY)
+
+    # Enables Cross Origin Resource Sharing (CORS) for the Flask app
+    # This allows the app to accept requests from different origins, which is useful for development and API usage
+    # In production, it is recommended to restrict CORS to specific origins for security reasons
+    #CORS(app)
+
+    # Runs the Flask application. Start the app, making it listen on all network interfaces (0.0.0.0) and port 5000
+    app.run(host='0.0.0.0', port=5000) # HTTP
+    #app.run(host='0.0.0.0', port=5000, ssl_context=('./certificates/localhost+3.pem', './certificates/localhost+3-key.pem')) # HTTPS

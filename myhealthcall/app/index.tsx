@@ -1,50 +1,24 @@
-import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { useRef, useState } from 'react';
-import { Alert, Button, StyleSheet, Pressable, Text, View, Image } from 'react-native';
+import { Text, View, Image, Pressable } from 'react-native';
 import AskMedicineScreen from '@components/AskMedicineScreen';
+import RequestAMyHealthKitScreen from '@components/RequestAMyHealthKit';
+import ShowMedicinesScreen from '@components/ShowMedicinesScreen';
+import AddMedicine from '@components/AddMedicine';
+import MedicineDetails from '@components/MedicineDetails'; 
+import { styles } from '@hooks/styles';
+
+type Screen =
+  | 'home'
+  | 'askMedicine'
+  | 'addMedicine'
+  | 'showMedicines'
+  | 'requestAMyHealthKit'
+  | 'medicineDetails';
 
 export default function App() {
-  const [permission, requestPermission] = useCameraPermissions();
-  const [cameraVisible, setCameraVisible] = useState(false);
-  const [screen, setScreen] = useState<'home' | 'askMedicine'>('home');
+  const [screen, setScreen] = useState<Screen>('home');
+  const [selectedMedicineName, setSelectedMedicineName] = useState<string | null>(null);
   const hasScannedRef = useRef(false);
-
-
-  if (!permission) return <View />;
-  if (!permission.granted) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.container}>We need your permission to show the camera</Text>
-        <Button onPress={requestPermission} title="Grant permission" />
-      </View>
-    );
-  }
-
-  const handleBarCodeScanned = (scanningResult: BarcodeScanningResult) => {
-    if (!hasScannedRef.current) {
-      hasScannedRef.current = true; // Evita múltiples llamadas
-      Alert.alert('A MyHealthKit is on its way.', '', [
-        {
-          text: 'OK',
-          onPress: () => {
-            setCameraVisible(false);
-            hasScannedRef.current = false; // Lo reseteamos para volver a escanear más tarde
-          },
-        },
-      ]);
-    }
-  };
-  
-  if (cameraVisible) {
-    return (
-      <CameraView
-        style={{ flex: 1 }}
-        facing="back"
-        barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-        onBarcodeScanned={handleBarCodeScanned}
-      />
-    );
-  }
 
   let content;
 
@@ -57,26 +31,53 @@ export default function App() {
             style={styles.image}
           />
           <View style={styles.buttonContainer}>
-            <Pressable style={styles.customButton} onPress={() => setCameraVisible(true)}>
+            <Pressable style={styles.customButton} onPress={() => setScreen('requestAMyHealthKit')}>
               <Text style={styles.buttonText}>Request a MyHealthKit</Text>
             </Pressable>
-  
             <Pressable style={styles.customButton} onPress={() => setScreen('askMedicine')}>
               <Text style={styles.buttonText}>Ask for a medicine</Text>
             </Pressable>
-  
-            <Pressable style={styles.customButton} onPress={() => {}}>
+            <Pressable style={styles.customButton} onPress={() => setScreen('addMedicine')}>
               <Text style={styles.buttonText}>Add a medicine</Text>
             </Pressable>
           </View>
         </View>
       );
       break;
-  
-    case 'askMedicine':
-      content = <AskMedicineScreen onBack={() => setScreen('home')} />;
+
+    case 'requestAMyHealthKit':
+      content = <RequestAMyHealthKitScreen onBack={() => setScreen('home')} />;
       break;
-  
+
+    case 'askMedicine':
+      content = <AskMedicineScreen onBack={() => setScreen('home')} setScreen={setScreen} />;
+      break;
+
+    case 'addMedicine':
+      content = <AddMedicine onBack={() => setScreen('home')} />;
+      break;
+
+    case 'showMedicines':
+      content = (
+        <ShowMedicinesScreen
+          onBack={() => setScreen('home')}
+          onShowMedicineDetails={(medicineName: string) => {
+            setSelectedMedicineName(medicineName);  
+            setScreen('medicineDetails');          
+          }}
+        />
+      );
+      break;
+
+    case 'medicineDetails':
+      content = (
+        <MedicineDetails
+          medicineName={selectedMedicineName}
+          onBack={() => setScreen('showMedicines')}
+        />
+      );
+      break;
+
     default:
       content = (
         <View style={styles.container}>
@@ -84,44 +85,6 @@ export default function App() {
         </View>
       );
   }
-  
-  return <View style={{ flex: 1 }}>{content}</View>;
-}  
 
-const styles = StyleSheet.create({
-  image: {
-    width: 200,
-    height: 200,
-    resizeMode: 'contain',
-    alignSelf: 'center',
-    marginBottom: 30,
-  },
-  container: {
-    flex: 1,
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 32,
-    backgroundColor: '#f2f2f2',
-    gap: 20,
-  },
-  buttonContainer: {
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  customButton: {
-    backgroundColor: '#4da6ff',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 10,
-    marginVertical: 5,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-});
+  return <View style={{ flex: 1 }}>{content}</View>;
+}

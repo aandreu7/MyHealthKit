@@ -1,6 +1,7 @@
 # Ignore key files
 .env
 keys.env
+**/certificates/
 
 # Ignore Python cache files
 __pycache__/
