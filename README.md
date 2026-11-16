@@ -27,7 +27,7 @@ MyHealthKit is a modular robotic system designed to store, manage, and dispense 
 
 ## GOAL
 
-Build the entire stack of an autonomous robot on the smallest possible budget, capable of storing and dispensing medicines.
+Build the entire stack of an autonomous robot on the smallest possible budget.
 
 ## Description
 
@@ -40,7 +40,7 @@ Build the entire stack of an autonomous robot on the smallest possible budget, c
 ### Project Overview
 MyHealthKit is a modular robotic system designed to store, manage, and dispense medicines autonomously. Built around a Raspberry Pi 4, the robot integrates sensors such as RPLidar for laser-based environment mapping and utilizes ROS Noetic for SLAM and navigation. The physical structure includes laser-cut wood and methacrylate parts, combined with custom-designed 3D-printed components to create a practical and compact storage mechanism.
 
-The accompanying mobile application enhances usability, offering functions like medicine recognition through AI-based image analysis, symptom-based diagnosis suggestions, and medicine inventory management. Users interact seamlessly with the robot via intuitive QR-code-based navigation requests and visual medicine retrieval commands.
+The accompanying mobile application enhances usability, offering functions like medicine recognition through AI-based image analysis, symptom-based diagnosis suggestions, and medicine inventory management. Users interact seamlessly with the robot via intuitive QR-code-based navigation requests (a.k.a. "One-click navigation": At any moment, just by scanning a QR code, which can be done with only one click on the app main screen, a MyHealthKit will automatically set sail to your position) and visual medicine retrieval commands.
 
 The software architecture relies on ROS packages for robust mapping, localization, and path-planning capabilities, enabling autonomous operation in dynamic indoor environments.
 
@@ -48,6 +48,9 @@ By integrating advanced sensor fusion, intuitive software interfaces, and precis
 
 This project and its repository is divided into two big modules: MyHealthController, related to all code running within the physical robot (SLAM, Navigation, server...), and MyHealthCall, a React Native application used to interact with the robot.
 
+#### Note on ROS:
+
+Although we are aware that ROS has been deprecated for years in favor of ROS2, we decided to use ROS (Noetic) for the sake of compatibility with the operating systems already present on some of our devices. Our primary long-term goal is to migrate the entire controller to ROS2.
 
 ## Tools & Dependencies
 ---
@@ -203,7 +206,7 @@ In this section, we provide an overview of the key components
 
 [![MyHealthKit — fully wired Fritzing circuit](images/design/circuit_design.wired.png)](images/design/circuit_design.wired.png)
 
-Fully wired in Fritzing, without breadboards. The RPLidar C1 is shown with its USB adapter connected to the Raspberry Pi. Wires use orthogonal routes; dots mark electrical junctions and crossings without dots are not connected.
+Made in Fritzing.
 
 [Full-resolution image](images/design/circuit_design.wired.png) · [Vector export](images/design/circuit_design.wired.svg) · [Editable Fritzing project](hardware/fritzing/MyHealthKit.fzz) · [Connections, sources and checks](hardware/reconstruction.md)
 
@@ -237,12 +240,6 @@ Another functionality available on the Home screen is *Request MyHealthKit*, whi
 | ![Figura 4](images/app/4.jpg) | ![Figura 5](images/app/5.jpg) | ![Figura 6](images/app/6.jpg)|
 | **Figura 4. Stored medicines**  | **Figura 5. Details medicine**  | **Figura 6. Scanning QR**     |
 
-## Amazing Contributions
----
-- One-click navigation: At any moment, just by scanning a QR code, which can be done with only one click on the app main screen, a MyHealthKit will automatically set sail to your position.
-
-- Fully-integrated medical support: A MyHealthKit cannot only be used to store and deploy medicines, but also serves as a server able and prepared to respond to medical-related questions, give medical advices and diagnosis using a fine-tunned LLM model through MyHealthCall app.
-
 ## Demonstration
 ---
 [Watch the demonstration](https://youtu.be/BZOoN5WSVKs)
@@ -255,10 +252,7 @@ Another functionality available on the Home screen is *Request MyHealthKit*, whi
 
 ## References
 ---
-- i. React. (n.d.). *React documentation*. Retrieved June 26, 2025, from https://react.dev/
-- ii. Hector SLAM. *Code and documentation*. Retrieved June 26, 2025, from https://wiki.ros.org/hector_slam
-- iii. OpenAI. (n.d.). *API reference and model documentation*. Retrieved June 26, 2025, from https://platform.openai.com/docs
-- iv. Together AI. (n.d.). *Together AI - Cloud inference and open models*. Retrieved June 26, 2025, from https://www.together.ai/
+- i. Hector SLAM. *Code and documentation*. Retrieved June 26, 2025, from https://wiki.ros.org/hector_slam
 
 ## Contributors
 ---
