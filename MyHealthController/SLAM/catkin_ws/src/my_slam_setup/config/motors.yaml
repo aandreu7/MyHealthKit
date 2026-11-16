@@ -1,0 +1,13 @@
+# BCM numbering. Verify wiring and measure before enabling motors.
+# TB6612 PWMA/PWMB must be held HIGH; PWM is applied to IN1/IN2.
+stby_pin: 21
+motor_pins: [[18, 27], [24, 25], [22, 23], [5, 6]]
+# Left front, left rear, right front, right rear; change signs for mirrored wiring.
+motor_signs: [1, 1, 1, 1]
+wheel_base: 0.20
+speed_at_full_duty: 0.50 # Measured straight-line m/s at duty=1, not wheel angular speed.
+max_linear: 0.15
+max_angular: 0.4
+cmd_timeout: 0.3
+health_timeout: 0.2
+pwm_frequency: 100

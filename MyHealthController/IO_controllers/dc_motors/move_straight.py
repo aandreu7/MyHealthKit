@@ -2,7 +2,6 @@ from gpiozero import PWMOutputDevice
 from time import sleep
 import argparse
 
-# --------------------------
 # GPIO pins configuration
 LEFT_FRONT_IN1 = 18
 LEFT_FRONT_IN2 = 27
@@ -14,8 +13,6 @@ RIGHT_FRONT_IN2 = 23
 RIGHT_REAR_IN1 = 5
 RIGHT_REAR_IN2 = 6
 
-# --------------------------
-# Initialize PWMOutputDevice for each motor pin
 left_front_in1 = PWMOutputDevice(LEFT_FRONT_IN1)
 left_front_in2 = PWMOutputDevice(LEFT_FRONT_IN2)
 left_rear_in1 = PWMOutputDevice(LEFT_REAR_IN1)
@@ -26,7 +23,6 @@ right_front_in2 = PWMOutputDevice(RIGHT_FRONT_IN2)
 right_rear_in1 = PWMOutputDevice(RIGHT_REAR_IN1)
 right_rear_in2 = PWMOutputDevice(RIGHT_REAR_IN2)
 
-# --------------------------
 def move_forward(speed=0.6, duration=3):
     """
     Move the robot forward at a given speed for a given duration.
@@ -61,7 +57,6 @@ def stop():
     right_rear_in1.value = 0
     right_rear_in2.value = 0
 
-# --------------------------
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Move the robot forward using PWM.")
     parser.add_argument('--speed', type=float, default=0.6, help='Speed value (0.0 to 1.0). Default: 0.6')

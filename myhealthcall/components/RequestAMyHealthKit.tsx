@@ -1,4 +1,3 @@
-// components/RequestAMyHealthKit.tsx
 // @aandreu7
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -87,7 +86,6 @@ export default function RequestAMyHealthKitScreen({ onBack }: Props) {
     );
   }
 
-  // If we already have a response from server, we show it
   if (serverMessage) {
     return (
       <View style={styles.center}>

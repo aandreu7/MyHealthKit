@@ -1,4 +1,3 @@
-// components/AddMedicine.tsx
 // @aandreu7
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -73,7 +72,6 @@ export default function AddMedicine({ onBack }: Props) {
     );
   }
 
-  // If we already have a response from server, we show it
   if (serverMessage) {
     return (
       <View style={styles.center}>
@@ -85,7 +83,6 @@ export default function AddMedicine({ onBack }: Props) {
     );
   }
 
-  // Opens camera if there is no message yet
   return (
     <View style={{ flex: 1 }}>
       <CameraView

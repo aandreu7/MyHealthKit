@@ -2,11 +2,10 @@
 import RPi.GPIO as GPIO
 import time
 
-# BCM Pines
+# BCM GPIO assignments.
 STBY1 = 17
 STBY2 = 26
 PWM_FR = 24
-#FR JA ESTÀ BÉ
 PWM_FL = 23
 PWM_BL = 5
 PWM_BR = 6
@@ -20,7 +19,6 @@ FREQ = 500  # Hz
 
 def main():
     GPIO.setmode(GPIO.BCM)
-    # Configures ports
     GPIO.setup(STBY1, GPIO.OUT)
     GPIO.setup(STBY2, GPIO.OUT)
     GPIO.setup(PWM_FR, GPIO.OUT)
@@ -38,13 +36,11 @@ def main():
     pwm_Back_Right = GPIO.PWM(PWM_BR, FREQ)
     pwm_Back_Left = GPIO.PWM(PWM_BL, FREQ)
 
-    # Inicializamos PWM en 0%
     pwm_Front_Right.start(0)
     pwm_Front_Left.start(0)
     pwm_Back_Right.start(0)
     pwm_Back_Left.start(0)
 
-    # Take out of standby
     GPIO.output(STBY1, GPIO.HIGH)
     GPIO.output(STBY2, GPIO.HIGH)
 
@@ -64,7 +60,7 @@ def main():
         pwm_Back_Left.ChangeDutyCycle(95)
         time.sleep(10)
 
-        print("Tourning left")
+        print("Turning left")
         pwm_Front_Right.ChangeDutyCycle(92)
         pwm_Front_Left.ChangeDutyCycle(30)
         pwm_Back_Right.ChangeDutyCycle(92)
@@ -78,14 +74,13 @@ def main():
         pwm_Back_Left.ChangeDutyCycle(100)
         time.sleep(7)
 
-        print("Tourning right")
+        print("Turning right")
         pwm_Front_Right.ChangeDutyCycle(100)
         pwm_Front_Left.ChangeDutyCycle(95)
         pwm_Back_Right.ChangeDutyCycle(100)
         pwm_Back_Left.ChangeDutyCycle(95)
         time.sleep(10)
 
-        # Stop
         print("Stopping motors")
         pwm_Front_Right.ChangeDutyCycle(0)
         pwm_Front_Left.ChangeDutyCycle(0)
@@ -106,7 +101,7 @@ def main():
         GPIO.output(BIN2_B, GPIO.LOW)
         GPIO.output(STBY2, GPIO.LOW)
         GPIO.cleanup()
-        print("GPIO limpiados, fin del script.")
+        print("GPIO resources released; script finished.")
 
 if __name__ == "__main__":
     main()

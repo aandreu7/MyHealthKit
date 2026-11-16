@@ -3,6 +3,7 @@
 MyHealthKit is a modular robotic system designed to store, manage, and dispense medicines autonomously.
 
 ## Table of Contents
+- [GOAL](#goal)
 - [Description](#description)
   - [Project Overview](#project-overview)
 - [Tools & Dependencies](#tools--dependencies)
@@ -24,8 +25,17 @@ MyHealthKit is a modular robotic system designed to store, manage, and dispense 
 - [License](#license)
 
 
+## GOAL
+
+Build the entire stack of an autonomous robot on the smallest possible budget, capable of storing and dispensing medicines.
+
 ## Description
----
+
+<p align="center">
+  <img src="images/design/robot.jpeg" alt="MyHealthKit robot" width="250">
+  <br>
+  <a href="https://youtu.be/BZOoN5WSVKs">Watch the demonstration</a>
+</p>
 
 ### Project Overview
 MyHealthKit is a modular robotic system designed to store, manage, and dispense medicines autonomously. Built around a Raspberry Pi 4, the robot integrates sensors such as RPLidar for laser-based environment mapping and utilizes ROS Noetic for SLAM and navigation. The physical structure includes laser-cut wood and methacrylate parts, combined with custom-designed 3D-printed components to create a practical and compact storage mechanism.
@@ -38,9 +48,6 @@ By integrating advanced sensor fusion, intuitive software interfaces, and precis
 
 This project and its repository is divided into two big modules: MyHealthController, related to all code running within the physical robot (SLAM, Navigation, server...), and MyHealthCall, a React Native application used to interact with the robot.
 
-<p align="center">
-  <img src="images/design/robot.jpeg" width="250" style="border-radius: 0%;">
-</p>
 
 ## Tools & Dependencies
 ---
@@ -113,11 +120,29 @@ The following scheme illustrates how user can communicate with MyHealthKit throu
 The robot, as it runs a server on its controller, responds to each petition while runs SLAM continuously.
 <img src="images/design/software.png" width="750" style="border-radius: 0%;">
 
-Our project integrates ROS (Noetic), which works using topics and nodes. The following diagram shows how nodes publish data on topics, so other nodes can gather input data and produce and publish new data on output topics.
+The ROS navigation graph below reflects the current launch configuration. Hector SLAM estimates the robot pose from successive RPLidar scans. `lidar_odometry` converts those poses into `/odom` (pose and estimated body velocity) and publishes the `odom → base_link` transform needed by `move_base`. `move_base` combines the Hector map, live scan obstacles, Navfn and DWA, then publishes body velocity commands on `/cmd_vel`. When explicitly enabled, the GPIO motor controller converts those commands to motor-driver inputs. It is disabled by default until the motor wiring and speed calibration have been checked.
 
-<img src="images/design/ROS-scheme.png" width="750" style="border-radius: 0%;">
+```mermaid
+flowchart LR
+  L[RPLidar] -->|/scan| H[Hector SLAM]
+  H -->|/map| G[Global costmap]
+  H -->|/slam_out_pose| O[lidar_odometry]
+  L -->|/scan health| O
+  O -->|/odom: pose + estimated twist| M[move_base]
+  O -->|TF: odom → base_link| M
+  S[Saved map-frame goal] -->|move_base action| M
+  L -->|/scan| C[Local costmap / obstacles]
+  G --> N[Navfn global plan]
+  C --> D[DWA local planner]
+  N --> D
+  D -->|/cmd_vel: linear and angular velocity| M
+  M -->|/cmd_vel| P[GPIO motor controller, optional]
+  P --> W[TB6612FNG and DC motors]
+```
 
-Basically, RPLidar node publishes data on /scan topic, so Hector SLAM, through the implementation of a scan-matching algorithm, can create the map, which is sent to Move Base node, which publishes the velocity at which each wheel should run to get to the goal.
+The transform tree is `map → odom → base_link → laser`. During a mapping session `map → odom` is the identity transform; Hector scan matching supplies the robot pose, and the measured LiDAR mounting transform supplies `base_link → laser`. There are no wheel encoders or IMU, so `/odom` velocity is derived from LiDAR pose differences and can be noisy or drift when scan matching loses reliable landmarks. `/cmd_vel` contains robot linear/angular velocity commands; the motor controller translates them into left/right PWM rather than receiving a separate target velocity for each wheel.
+
+The complete setup, including the LiDAR-only limitation, launch steps, calibration and on-robot checks, is documented in [MyHealthController/SLAM/NAVIGATION.md](MyHealthController/SLAM/NAVIGATION.md).
 
 ## Hardware
 ---
@@ -167,7 +192,7 @@ In this section, we provide an overview of the key components
 |--------------------------------------------------|-----------|-------------|
 | Raspberry Pi 4 Modelo B 8GB RAM                           | 1         | 89.95€      |
 | RPLidar C1                                         | 1         | 96.74€      |
-| Controlador motor DC dual DRV8833                            | 2         | 36.18€       |
+| Controlador motor DC dual TB6612FNG                            | 2         | 36.18€       |
 | Batería Ion Litio 3.7V                                    | 1         | 24.14€      |
 | Servomotor MG996R                     | 2         | 15.74€      |
 | Mini Motor DC                                          | 4         | 12.12€       |
@@ -175,7 +200,12 @@ In this section, we provide an overview of the key components
 | **Total Price**                                   |           | **284.43€** |
 
 ### Circuit Design
-<img src="images/design/circuit_design.png" width="750" style="border-radius: 0%;">
+
+[![MyHealthKit — fully wired Fritzing circuit](images/design/circuit_design.wired.png)](images/design/circuit_design.wired.png)
+
+Fully wired in Fritzing, without breadboards. The RPLidar C1 is shown with its USB adapter connected to the Raspberry Pi. Wires use orthogonal routes; dots mark electrical junctions and crossings without dots are not connected.
+
+[Full-resolution image](images/design/circuit_design.wired.png) · [Vector export](images/design/circuit_design.wired.svg) · [Editable Fritzing project](hardware/fritzing/MyHealthKit.fzz) · [Connections, sources and checks](hardware/reconstruction.md)
 
 ## App Functionalities
 ---
@@ -215,7 +245,7 @@ Another functionality available on the Home screen is *Request MyHealthKit*, whi
 
 ## Demonstration
 ---
-[Link to visual demonstration](https://youtu.be/2AqkAf-FRpg)
+[Watch the demonstration](https://youtu.be/BZOoN5WSVKs)
 
 ## To Do
 ---
@@ -241,27 +271,3 @@ Another functionality available on the Home screen is *Request MyHealthKit*, whi
 ## License
 ---
 This project is licensed under the [Apache-2.0 License](https://github.com/aandreu7/MyHealthKit/blob/main/LICENSE).
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

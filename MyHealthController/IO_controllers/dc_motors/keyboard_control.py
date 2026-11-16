@@ -3,7 +3,7 @@ import RPi.GPIO as GPIO
 import time
 import getch
 
-# Pines BCM
+# BCM GPIO assignments.
 STBY1 = 17
 STBY2 = 26
 PWM_FR = 24
@@ -35,7 +35,7 @@ def setup_motors():
     GPIO.output(STBY1, GPIO.HIGH)
     GPIO.output(STBY2, GPIO.HIGH)
 
-    # Dirección por defecto: adelante
+    # Forward direction with this wiring.
     GPIO.output(AIN1_B, GPIO.LOW)
     GPIO.output(AIN2_B, GPIO.HIGH)
     GPIO.output(BIN1_B, GPIO.HIGH)
@@ -63,16 +63,16 @@ def main():
     pwm_FR, pwm_FL, pwm_BR, pwm_BL = setup_motors()
     pwms = [pwm_FR, pwm_FL, pwm_BR, pwm_BL]
 
-    print("Control WASD:")
-    print("W = Adelante | A/D = Gira avanzando | S = Lento | X = Gira marcha atrás")
-    print("ESPACIO = FRENAR | Q = Salir")
+    print("WASD controls:")
+    print("W = Forward | A/D = Turn forward | S = Slow | X = Turn in reverse")
+    print("SPACE = Brake | Q = Quit")
 
     try:
         while True:
             key = getch.getch().lower()
 
             if key == 'w':
-                print("Adelante recto")
+                print("Moving straight forward")
                 set_forward_direction()
                 pwm_FR.ChangeDutyCycle(100)
                 pwm_FL.ChangeDutyCycle(100)
@@ -80,7 +80,7 @@ def main():
                 pwm_BL.ChangeDutyCycle(100)
 
             elif key == 'a':
-                print("Gira izquierda")
+                print("Turning left")
                 set_forward_direction()
                 pwm_FR.ChangeDutyCycle(100)
                 pwm_FL.ChangeDutyCycle(30)
@@ -88,7 +88,7 @@ def main():
                 pwm_BL.ChangeDutyCycle(30)
 
             elif key == 'd':
-                print("Gira derecha")
+                print("Turning right")
                 set_forward_direction()
                 pwm_FR.ChangeDutyCycle(30)
                 pwm_FL.ChangeDutyCycle(100)
@@ -96,7 +96,7 @@ def main():
                 pwm_BL.ChangeDutyCycle(100)
 
             elif key == 's':
-                print("Más lento recto")
+                print("Moving straight at reduced speed")
                 set_forward_direction()
                 pwm_FR.ChangeDutyCycle(50)
                 pwm_FL.ChangeDutyCycle(50)
@@ -104,7 +104,7 @@ def main():
                 pwm_BL.ChangeDutyCycle(50)
 
             elif key == 'x':
-                print("🔁 Gira marcha atrás (mantener pulsado)")
+                print("Turning in reverse (hold the key)")
                 set_reverse_turn_direction()
                 pwm_FR.ChangeDutyCycle(100)
                 pwm_FL.ChangeDutyCycle(100)
@@ -112,16 +112,16 @@ def main():
                 pwm_BL.ChangeDutyCycle(100)
 
             elif key == ' ':
-                print("🚨 FRENADO")
+                print("BRAKING")
                 stop_motors(pwms)
 
             elif key == 'q':
-                print("Saliendo...")
+                print("Exiting...")
                 stop_motors(pwms)
                 break
 
             else:
-                print("Tecla no válida. Usa W/A/S/D/X/ESPACIO/Q")
+                print("Invalid key. Use W/A/S/D/X/SPACE/Q")
                 stop_motors(pwms)
 
     finally:
@@ -131,7 +131,7 @@ def main():
         GPIO.output(STBY1, GPIO.LOW)
         GPIO.output(STBY2, GPIO.LOW)
         GPIO.cleanup()
-        print("GPIO limpiados. Programa finalizado.")
+        print("GPIO resources released; program finished.")
 
 if __name__ == "__main__":
     main()

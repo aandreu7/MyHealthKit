@@ -1,0 +1,362 @@
+[
+  {
+    "part": "PI",
+    "pin": "connector11",
+    "net": "GPIO18"
+  },
+  {
+    "part": "PI",
+    "pin": "connector12",
+    "net": "GPIO27"
+  },
+  {
+    "part": "PI",
+    "pin": "connector17",
+    "net": "GPIO24"
+  },
+  {
+    "part": "PI",
+    "pin": "connector21",
+    "net": "GPIO25"
+  },
+  {
+    "part": "PI",
+    "pin": "connector14",
+    "net": "GPIO22"
+  },
+  {
+    "part": "PI",
+    "pin": "connector15",
+    "net": "GPIO23"
+  },
+  {
+    "part": "PI",
+    "pin": "connector28",
+    "net": "GPIO5"
+  },
+  {
+    "part": "PI",
+    "pin": "connector30",
+    "net": "GPIO6"
+  },
+  {
+    "part": "PI",
+    "pin": "connector39",
+    "net": "STBY"
+  },
+  {
+    "part": "PI",
+    "pin": "connector7",
+    "net": "GPIO14"
+  },
+  {
+    "part": "PI",
+    "pin": "connector9",
+    "net": "GPIO15"
+  },
+  {
+    "part": "PI",
+    "pin": "connector0",
+    "net": "+3V3"
+  },
+  {
+    "part": "PI",
+    "pin": "connector1",
+    "net": "+5V"
+  },
+  {
+    "part": "PI",
+    "pin": "connector38",
+    "net": "GND"
+  },
+  {
+    "part": "D1",
+    "pin": "connector16",
+    "net": "GPIO18"
+  },
+  {
+    "part": "D1",
+    "pin": "connector15",
+    "net": "GPIO27"
+  },
+  {
+    "part": "D1",
+    "pin": "connector18",
+    "net": "GPIO24"
+  },
+  {
+    "part": "D1",
+    "pin": "connector19",
+    "net": "GPIO25"
+  },
+  {
+    "part": "D1",
+    "pin": "connector14",
+    "net": "+3V3"
+  },
+  {
+    "part": "D1",
+    "pin": "connector20",
+    "net": "+3V3"
+  },
+  {
+    "part": "D1",
+    "pin": "connector17",
+    "net": "STBY"
+  },
+  {
+    "part": "D1",
+    "pin": "connector21",
+    "net": "GND"
+  },
+  {
+    "part": "D1",
+    "pin": "connector12",
+    "net": "+3V3"
+  },
+  {
+    "part": "D1",
+    "pin": "connector13",
+    "net": "VM"
+  },
+  {
+    "part": "D1",
+    "pin": "connector10",
+    "net": "M1A"
+  },
+  {
+    "part": "D1",
+    "pin": "connector9",
+    "net": "M1B"
+  },
+  {
+    "part": "D1",
+    "pin": "connector8",
+    "net": "M2A"
+  },
+  {
+    "part": "D1",
+    "pin": "connector7",
+    "net": "M2B"
+  },
+  {
+    "part": "D2",
+    "pin": "connector16",
+    "net": "GPIO22"
+  },
+  {
+    "part": "D2",
+    "pin": "connector15",
+    "net": "GPIO23"
+  },
+  {
+    "part": "D2",
+    "pin": "connector18",
+    "net": "GPIO5"
+  },
+  {
+    "part": "D2",
+    "pin": "connector19",
+    "net": "GPIO6"
+  },
+  {
+    "part": "D2",
+    "pin": "connector14",
+    "net": "+3V3"
+  },
+  {
+    "part": "D2",
+    "pin": "connector20",
+    "net": "+3V3"
+  },
+  {
+    "part": "D2",
+    "pin": "connector17",
+    "net": "STBY"
+  },
+  {
+    "part": "D2",
+    "pin": "connector21",
+    "net": "GND"
+  },
+  {
+    "part": "D2",
+    "pin": "connector12",
+    "net": "+3V3"
+  },
+  {
+    "part": "D2",
+    "pin": "connector13",
+    "net": "VM"
+  },
+  {
+    "part": "D2",
+    "pin": "connector10",
+    "net": "M3A"
+  },
+  {
+    "part": "D2",
+    "pin": "connector9",
+    "net": "M3B"
+  },
+  {
+    "part": "D2",
+    "pin": "connector8",
+    "net": "M4A"
+  },
+  {
+    "part": "D2",
+    "pin": "connector7",
+    "net": "M4B"
+  },
+  {
+    "part": "M1",
+    "pin": "connector3",
+    "net": "M1A"
+  },
+  {
+    "part": "M1",
+    "pin": "connector2",
+    "net": "M1B"
+  },
+  {
+    "part": "M2",
+    "pin": "connector3",
+    "net": "M2A"
+  },
+  {
+    "part": "M2",
+    "pin": "connector2",
+    "net": "M2B"
+  },
+  {
+    "part": "M3",
+    "pin": "connector3",
+    "net": "M3A"
+  },
+  {
+    "part": "M3",
+    "pin": "connector2",
+    "net": "M3B"
+  },
+  {
+    "part": "M4",
+    "pin": "connector3",
+    "net": "M4A"
+  },
+  {
+    "part": "M4",
+    "pin": "connector2",
+    "net": "M4B"
+  },
+  {
+    "part": "S1",
+    "pin": "connector0",
+    "net": "GND"
+  },
+  {
+    "part": "S1",
+    "pin": "connector1",
+    "net": "+5V"
+  },
+  {
+    "part": "S1",
+    "pin": "connector2",
+    "net": "GPIO15"
+  },
+  {
+    "part": "S2",
+    "pin": "connector0",
+    "net": "GND"
+  },
+  {
+    "part": "S2",
+    "pin": "connector1",
+    "net": "+5V"
+  },
+  {
+    "part": "S2",
+    "pin": "connector2",
+    "net": "GPIO14"
+  },
+  {
+    "part": "BAT1",
+    "pin": "connector0",
+    "net": "VBAT"
+  },
+  {
+    "part": "BAT1",
+    "pin": "connector1",
+    "net": "GND"
+  },
+  {
+    "part": "DC",
+    "pin": "connector1",
+    "net": "VBAT"
+  },
+  {
+    "part": "DC",
+    "pin": "connector2",
+    "net": "GND"
+  },
+  {
+    "part": "DC",
+    "pin": "connector3",
+    "net": "GND"
+  },
+  {
+    "part": "DC",
+    "pin": "connector4",
+    "net": "+5V"
+  },
+  {
+    "part": "BAT2",
+    "pin": "connector0",
+    "net": "GND"
+  },
+  {
+    "part": "BAT2",
+    "pin": "connector1",
+    "net": "VM"
+  },
+  {
+    "part": "PI",
+    "pin": "usb0",
+    "net": "USB_VBUS"
+  },
+  {
+    "part": "LIDAR",
+    "pin": "connector0",
+    "net": "USB_VBUS"
+  },
+  {
+    "part": "PI",
+    "pin": "usb1",
+    "net": "USB_D-"
+  },
+  {
+    "part": "LIDAR",
+    "pin": "connector1",
+    "net": "USB_D-"
+  },
+  {
+    "part": "PI",
+    "pin": "usb2",
+    "net": "USB_D+"
+  },
+  {
+    "part": "LIDAR",
+    "pin": "connector2",
+    "net": "USB_D+"
+  },
+  {
+    "part": "PI",
+    "pin": "usb3",
+    "net": "USB_GND"
+  },
+  {
+    "part": "LIDAR",
+    "pin": "connector3",
+    "net": "USB_GND"
+  }
+]

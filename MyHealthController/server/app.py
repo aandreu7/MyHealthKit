@@ -1,356 +1,211 @@
-from flask import Flask, jsonify, request, send_file
-from flask_cors import CORS
+"""HTTP endpoints; no credentials/models are required for inventory/navigation."""
 import os
+from pathlib import Path
+import re
+import tempfile
+import threading
+import time
+import uuid
+
 from dotenv import load_dotenv
-from openai import OpenAI
-from services import *
+from flask import Flask, jsonify, request, send_file, url_for
+from filelock import Timeout as LockTimeout
 
-# Create a Flask application instance
+if __package__:
+    from . import services
+    from .settings import AUDIO_DIR, KEYS_PATH
+    from .prompts import medicine_prompt, diagnosis_prompt
+else:
+    import services
+    from settings import AUDIO_DIR, KEYS_PATH
+    from prompts import medicine_prompt, diagnosis_prompt
+
+# Preserve the navigation entry points and response contract.
+send_robot = services.send_robot
+validate_qr_code = services.validate_qr_code
+load_dotenv(dotenv_path=KEYS_PATH)
 app = Flask(__name__)
+app.config.update(LANGUAGE=os.getenv('MYHEALTHKIT_LANGUAGE', 'en-US'),
+                  AUDIO_DIR=AUDIO_DIR, AUDIO_TTL=3600,
+                  PLAY_DIAGNOSIS_AUDIO=os.getenv('MYHEALTHKIT_PLAY_AUDIO', '1') == '1',
+                  LLM_CLIENT=None)
+_client_lock = threading.Lock()
 
-"""
-!!! Important and clarifying information about Python decorators used in this code !!!
 
-Basically, they are indicating that the functions defined under them are going to be executed when, through MyHealthCall application,
-a GET/POST/etc message is sent to the concrete route that the decorators specify.
+def get_client():
+    with _client_lock:
+        if app.config['LLM_CLIENT'] is None:
+            from openai import OpenAI
+            key = os.getenv('OPENROUTER_API_KEY')
+            if not key:
+                raise RuntimeError('OPENROUTER_API_KEY is not configured')
+            app.config['LLM_CLIENT'] = OpenAI(base_url='https://openrouter.ai/api/v1',
+                                            api_key=key, timeout=60, max_retries=1)
+        return app.config['LLM_CLIENT']
 
-For example:
 
-When this call is made from MyHealthCall:
+def medicine_id_from_request():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        raise ValueError('Expected a JSON object')
+    value = data.get('medicine_id')
+    if isinstance(value, str) and re.fullmatch(r'[0-9]+', value):
+        value = int(value)
+    if type(value) is not int or value <= 0:
+        raise ValueError('medicine_id must be a positive integer')
+    return value
 
-    const response = await fetch(`${ROBOT_IP}/start-diagnosis`, {
-            method: 'POST',
-        });
 
-Flask app instance catches it using the following Python decorator:
-
-@app.route('/start-diagnosis', methods=['POST'])
-
-and the function defined under it (start_diagnosis) is executed.
-"""
-
-# Route for the main page (GET request)
 @app.route('/')
 def index():
-    # Returns a JSON response with a status of "OK"
-    return jsonify(status="OK")
+    return jsonify(status='OK')
 
-@app.route('/diagnosis-output.mp3')
-def serve_audio():
-    return send_file("diagnosis-output.mp3", mimetype="audio/mpeg")
+
+@app.route('/diagnosis-output/<audio_id>.mp3')
+@app.route('/diagnosis-output.mp3', defaults={'audio_id': None})
+def serve_audio(audio_id):
+    audio_id = audio_id or request.args.get('id', '')
+    if not re.fullmatch(r'[0-9a-f]{32}', audio_id):
+        return jsonify(error='Use the audioUri returned by the diagnosis request.'), 404
+    path = Path(app.config['AUDIO_DIR']) / (audio_id + '.mp3')
+    if not path.is_file() or time.time() - path.stat().st_mtime > app.config['AUDIO_TTL']:
+        return jsonify(error='Audio does not exist or has expired.'), 404
+    return send_file(str(path), mimetype='audio/mpeg', max_age=0)
+
 
 @app.route('/show-medicines', methods=['GET'])
 def show_medicines():
-    medicines = get_all_medicines_with_ids()  
-    return jsonify({
-        'success': True,
-        'medicine_items': medicines
-    })
+    return jsonify(success=True, medicine_items=services.get_all_medicines_with_ids())
 
 
 @app.route('/medicine-details', methods=['POST'])
 def medicine_details():
-    try:
-        data = request.get_json()
-        medicine_id = data.get('medicine_id')
-        if not medicine_id:
-            return jsonify(error="No medicine ID provided."), 400
-        medicine = get_medicine_by_id(medicine_id)
-        if not medicine:
-            return jsonify(error="Medicine not found."), 404
-        return jsonify(medicine)
+    medicine_id = medicine_id_from_request()
+    medicine = services.get_medicine_by_id(medicine_id)
+    if medicine is None:
+        raise services.MedicineNotFound('Medicine does not exist')
+    return jsonify(medicine)
 
-    except Exception as e:
-        print(f"Error in /medicine-details: {e}")
-        return jsonify(error="Internal server error."), 500
 
 @app.route('/request-myhealthkit', methods=['POST'])
 def request_myhealthkit():
     try:
-        data = request.get_json()
-        qr_content = data.get("message")
-        location = validate_qr_code(qr_content)
-        if location==-1:
-            raise ValueError("Invalid QR code scanned")
-        
-        print("MyHealthKit setting sale to: ", location)
-        return jsonify(message="OK")
-    
-    except Exception as e:
-        return jsonify(error=f"Failed to request a MyHealthKit due to: {str(e)}"), 500
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify(error='Expected a JSON object.'), 400
+        location = validate_qr_code(data.get('message'))
+        if location == -1:
+            return jsonify(error='Invalid QR code scanned.'), 400
+        send_robot(location)
+        return jsonify(message='Navigation goal accepted; arrival not yet confirmed.',
+                       location=location, status='accepted'), 202
+    except Exception:
+        app.logger.exception('Navigation request failed')
+        return jsonify(error='Navigation unavailable or destination not configured.'), 503
 
 
 @app.route('/delete-medicine', methods=['POST'])
 def delete_medicine():
-    print("Deleting the medicine...")
-    try:
-        data = request.get_json()
-        medicine_id = data.get('medicine_id')
-
-        # Basic validation
-        if not medicine_id:
-            return jsonify(error="Missing 'medicine_id' in request."), 400
-
-        # Delete the medicine from the database
-        del_medicine(medicine_id)
-        print(f"Medicine with ID '{medicine_id}' deleted from database.")
-        return jsonify(message=f"Medicine with ID '{medicine_id}' deleted successfully.")
-
-    except Exception as e:
-        print(f"Error deleting medicine: {e}")
-        return jsonify(error=f"Failed to delete medicine due to: {str(e)}"), 500
+    medicine_id = medicine_id_from_request()
+    services.del_medicine(medicine_id)
+    return jsonify(message="Medicine with ID '%s' deleted successfully." % medicine_id)
 
 
 @app.route('/select-medicine', methods=['POST'])
 def select_medicine():
-    print("Selecting the medicine...")
-    try:
-        data = request.get_json()
-        medicine_id = data.get('medicine_id')
-        # Basic validation
-        if not medicine_id:
-            return jsonify(error="Missing 'medicine_id' in request."), 400
+    medicine_id = medicine_id_from_request()
+    position = services.select_stored_medicine(medicine_id)
+    return jsonify(message="Medicine '%s' selected at position %s." % (medicine_id, position))
 
-        # Obtain the position of the medicine
-        position = get_position_medicine(medicine_id)
-        if position is None:
-            return jsonify(error="Medicine does not exist."), 404
-        
-        execute_spin_wheel(position)
-        trapdoor_control(True)  # Open the trapdoor to release the medicine
-
-        
-        #LA TRAMPILLA
-
-        print(f"Medicine '{medicine_id}' found at position {position}")
-        return jsonify(message=f"Medicine '{medicine_id}' selected at position {position}.")
-
-    except Exception as e:
-        print(f"Error selecting medicine: {e}")
-        return jsonify(error=f"Failed to select medicine due to: {str(e)}"), 500
 
 @app.route('/add-medicine', methods=['POST'])
 def add_medicine():
-    print("Adding a new medicine to MyHealthKit...")
+    upload = request.files.get('file')
+    if upload is None or not upload.filename:
+        raise ValueError('A medicine image is required')
+    with tempfile.TemporaryDirectory(prefix='myhealthkit-image-') as directory:
+        image = Path(directory) / 'medicine.image'
+        upload.save(str(image))
+        if image.stat().st_size == 0:
+            raise ValueError('The uploaded image is empty')
+        text = services.ocr_google_api(image)
+        answer = services.get_completion(get_client(), medicine_prompt(text))
+        info = services.clean_json(answer.choices[0].message.content)
+        if not services.validate_medicine_info(info):
+            raise ValueError('Incomplete or invalid medicine data returned by the model')
+        services.store_medicine(info)
+    return jsonify(message="Medicine '%s' has been successfully added." % info['name'])
 
-    file = request.files['file']
-    filename = file.filename
-    _, ext = os.path.splitext(filename)
-    save_path = os.path.join(os.getcwd(), f"new_medicine{ext}")
-    file.save(save_path)
-    print(f"Medicine photo saved at {save_path}")
 
-    try:
-        #resize_image_if_needed(save_path)
-        #extracted_text = ocr_space_file(save_path)
-        extracted_text = ocr_google_api(save_path)
-        print(f"OCR extracted text: {extracted_text}")
-
-        if extracted_text.strip():
-            message = [
-                {
-                    "role": "user",
-                    "content": 
-                    (
-                        f"I scanned a real medicine box and these are the detected words: \"{extracted_text.strip()}\".\n\n"
-                        "TASK:\n"
-                        "1. Identify the real active ingredient (e.g., 'Paracetamol', 'Amoxicillin') from the provided words.\n"
-                        "2. Based on that name, return a structured JSON with:\n"
-                        "- name: (exact name of the active drug)\n"
-                        "- description: (short drug category or therapeutic use)\n"
-                        "- symptoms: (main symptoms or conditions it treats)\n"
-                        "- contraindications: (known contraindications or risks)\n"
-                        "- url_prospect: (must be from https://www.medicines.org.uk/emc/product/<number>/smpc, or null)\n\n"
-                        "IMPORTANT:\n"
-                        "- The response must be based ONLY on the name found in the extracted words.\n"
-                        "- Ignore brand names (e.g. Numark, Bayer).\n"
-                        "- Be medically accurate and concise.\n"
-                        "- Return only a valid JSON. No explanation or extra text.\n\n"
-                        "EXAMPLE RESPONSE:\n"
-                        "{\n"
-                        "  \"name\": \"Ibuprofen\",\n"
-                        "  \"description\": \"Non-steroidal anti-inflammatory drug\",\n"
-                        "  \"symptoms\": \"pain, inflammation, fever\",\n"
-                        "  \"contraindications\": \"gastric ulcer, kidney disease\",\n"
-                        "  \"url_prospect\": \"https://www.medicines.org.uk/emc/product/5678/smpc\"\n"
-                        "}"
-                    )
-                }
-            ]
-
-            raw_answer = get_completion(client, message).choices[0].message.content.strip()
-
-            def clean_json(raw):
-                raw = raw.strip()
-                if raw.startswith("```json"):
-                    raw = raw[len("```json"):].strip()
-                if raw.startswith("```"):
-                    raw = raw[len("```"):].strip()
-                if raw.endswith("```"):
-                    raw = raw[:-3].strip()
-                return raw
-
+def cleanup_audio(directory):
+    for path in directory.glob('*.mp3'):
+        if re.fullmatch(r'[0-9a-f]{32}', path.stem):
             try:
-                clean_answer = clean_json(raw_answer)
-                medicine_info = json.loads(clean_answer)
+                if time.time() - path.stat().st_mtime > app.config['AUDIO_TTL']:
+                    path.unlink()
+            except OSError:
+                pass  # Another worker may be serving or removing the same expired file.
 
-                print("Medicine info: ", medicine_info)
 
-                if not validate_medicine_info(medicine_info):
-                    raise ValueError("Invalid medicine information extracted by OCR and LLM")
-
-                position = find_empty_position()
-
-                print("First free position: ", position)
-
-                if position == -1:
-                    raise RuntimeError("No available positions")
-
-                # !!! HARDWARE INTERACTION !!!
-                execute_spin_wheel(position)
-                
-                add_medicine_to_db(
-                    name=medicine_info.get("name", ""),
-                    description=medicine_info.get("description", ""),
-                    url_prospect=medicine_info.get("url_prospect", ""),
-                    symptoms=medicine_info.get("symptoms", ""),
-                    contraindications=medicine_info.get("contraindications", ""),
-                    position=position
-                )
-                print("Detected medicine info:", medicine_info)
-                return jsonify(message=f"Medicine '{medicine_info.get('name', '')}' has been successfully added.")
-
-            except json.JSONDecodeError:
-                print("Failed to decode JSON from AI response:", raw_answer)
-                return jsonify(error="Could not parse a valid JSON from the AI response."), 500
-
-        else:
-            raise ValueError("OCR could not detect text properly.")
-
-    except Exception as e:
-        print(f"Error processing medicine image: {e}")
-        return jsonify(error=f"Failed to add medicine due to: {str(e)}"), 500
-
-# Route to start a diagnosis (POST request)
 @app.route('/start-diagnosis', methods=['POST'])
 def start_diagnosis():
-    # Prints a message to the console indicating the diagnosis is starting
-    print("Starting diagnosis on MyHealthKit...")
+    upload = request.files.get('file')
+    if upload is None or not upload.filename:
+        raise ValueError('An audio file is required')
+    language = app.config['LANGUAGE']
+    text = services.transcribe_audio(upload, language=language)
+    existing = services.get_all_medicines()
+    answer = services.get_completion(get_client(), diagnosis_prompt(existing, language, text)).choices[0].message.content
+    suggested = services.extract_medicines_list(answer, allowed=existing)
+    readable = services.format_human_readable(answer)
+    if not readable:
+        raise ValueError('Model returned no diagnosis text')
+    directory = Path(app.config['AUDIO_DIR'])
+    directory.mkdir(parents=True, exist_ok=True)
+    cleanup_audio(directory)
+    audio_id = uuid.uuid4().hex
+    target = directory / (audio_id + '.mp3')
+    with tempfile.TemporaryDirectory(prefix='generating-', dir=str(directory)) as temp:
+        pending = Path(temp) / 'speech.mp3'
+        services.speak(readable, language, audio_path=pending)
+        os.replace(str(pending), str(target))
+    if app.config['PLAY_DIAGNOSIS_AUDIO']:
+        try:
+            services.play_mp3(target)
+        except Exception:
+            app.logger.exception('Robot audio playback failed; phone audio is available')
+    return jsonify(success=True, message='Diagnosis completed.\n' + readable,
+                   medicines=suggested, audioUri=url_for('serve_audio', audio_id=audio_id, _external=True))
 
-    # Obtains message's body from the request
-    if 'file' not in request.files:
-        return "No file (pacient's audio) part", 400
-    file = request.files['file']
 
-    if file.filename == '':
-        return "File has no name or is void", 400
+@app.errorhandler(services.MedicineNotFound)
+def missing_medicine(error):
+    return jsonify(error=str(error)), 404
 
-    # Saves the audio file to the current working directory with the name "last_request"
-    filename = file.filename
-    _, ext = os.path.splitext(filename)
-    save_path = os.path.join(os.getcwd(), f"last_request{ext}")
-    file.save(save_path)
-    print("File saved")
 
-    # Transcribes the audio file into text using the transcribe_audio function defined in the services.py file
-    transcribed_text = transcribe_audio(file, model=model, language=definedLanguage)
+@app.errorhandler(services.InventoryFull)
+def full_inventory(error):
+    return jsonify(error=str(error)), 409
 
-    print(transcribed_text)
 
-    existing_medicines = get_all_medicines()
+@app.errorhandler(ValueError)
+def invalid_request(error):
+    return jsonify(error=str(error)), 400
 
-    message = [
-            {
-                "role": "system",
-                "content": (
-                    "You are a doctor. When a patient asks for a diagnosis and medicine, follow this format:\n\n"
-                    "1. **State a possible diagnosis**, starting with: 'The diagnosis could be [diagnosis].'\n"
-                    "2. **Then mention only the medicines that are available**, grouped naturally in a single sentence like:\n"
-                    "'[medicine1], [medicine2] and [medicine3] are available.'\n"
-                    "Do not say 'is available' for each medicine separately.\n"
-                    "3. Do **not** mention any medicine that is not in this list: " + str(existing_medicines) + "\n"
-                    "4. Do **not** say anything like 'is not available' or similar. Just ignore the unavailable ones.\n\n"
-                    "At the end of the message, include **only the list of available medicines**, in the exact format:\n"
-                    "['medicine1', 'medicine2'] — on a new line and nothing else.\n"
-                    "If the list is empty, show [].\n\n"
-                    "Respond in this language: " + definedLanguage + ".\n"
-                    "Stick to this format strictly and keep the response short and to the point."
-                )
-            },
-            {
-                "role": "user",
-                "content": transcribed_text
-            }
-    ]
 
-    # Makes a call to the OpenRouter API to get a response based on the provided message
-    # The get_completion function is defined in the services.py file and is responsible for interacting with the OpenRouter API
-    answer = get_completion(client, message, use_gemini_native=True).choices[0].message.content
-    print("Answer received: ", answer)
+@app.errorhandler(LockTimeout)
+def busy_dispenser(error):
+    return jsonify(error='The dispenser is busy. Try again shortly.'), 503
 
-    try:
-        medicines_suggested = extract_medicines_list(answer)
-        answer = format_human_readable(answer) # Cleans the text in order to be properly shown to the user
-        print("Medicines suggested: ", medicines_suggested)
-        speak(answer, definedLanguage)  # Reads (verbally) the diagnosis using the TTS function defined in the services.py file
-    except ValueError as e:
-        print(f"Error: {e}")
-        return jsonify(error="Diagnosis was not succesfully completed.")
 
-    """
-    # Remove the existing audios
-    if os.path.exists("diagnosis-output.mp3"):
-        os.remove("diagnosis-output.mp3")
-    if os.path.exists("last_request.m4a"):
-        os.remove("last_request.m4a")
-    """
+@app.errorhandler(Exception)
+def operation_failed(error):
+    from werkzeug.exceptions import HTTPException
+    if isinstance(error, HTTPException):
+        return error
+    app.logger.exception('Controller operation failed')
+    return jsonify(error='The operation could not be completed.'), 500
 
-    audio_url = f"http://{request.host}/diagnosis-output.mp3"
-    return jsonify({
-        "success": True,
-        "message": "Diagnosis completed.\n" + answer,
-        "medicines": medicines_suggested,
-        "audioUri": audio_url
-    })
 
 if __name__ == '__main__':
-
-    """
-    !!! Important information about SQLite3 database accesses !!!
-
-    As Flask works with multiple threads, and Flask does not support SQLite3 database access from multiple threads,
-    it is necessary to create a new connection and cursor inside each function in order to access the SQLite3 database.
-    Once the cursor and connection aren no longer neeeded, they MUST be closed.
-    """
-
-    definedLanguage = "en-US"
-
-    # Loads Vosk model
-    if definedLanguage == "en-US":
-        #model = Model("./vosk-models/vosk-model-en-us-0.22") # English
-        model = Model("./vosk-models/vosk-model-en-us-0.22-lgraph") # English (light)
-    elif definedLanguage == "es-ES":
-        model = Model("./vosk-models/vosk-model-es-0.42") # Spanish
-    else:
-        raise ValueError("Invalid language")
-
-    # Set the API key and base URL for the OpenRouter API
-    load_dotenv(dotenv_path="./keys.env")
-    
-    client = OpenAI(
-        base_url="https://openrouter.ai/api/v1",
-        api_key=os.getenv("OPENROUTER_API_KEY")
-    )
-
-    # Set the API key and configure Gemini API
-    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-    genai.configure(api_key=GEMINI_API_KEY)
-
-    # Enables Cross Origin Resource Sharing (CORS) for the Flask app
-    # This allows the app to accept requests from different origins, which is useful for development and API usage
-    # In production, it is recommended to restrict CORS to specific origins for security reasons
-    #CORS(app)
-
-    # Runs the Flask application. Start the app, making it listen on all network interfaces (0.0.0.0) and port 5000
-    app.run(host='0.0.0.0', port=5000) # HTTP
-    #app.run(host='0.0.0.0', port=5000, ssl_context=('./certificates/localhost+3.pem', './certificates/localhost+3-key.pem')) # HTTPS
+    app.run(host='0.0.0.0', port=5000)

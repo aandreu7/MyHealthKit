@@ -143,6 +143,9 @@ export const sendMessageToRobot = async (
     if (action === Action2Robot.AddMedicine && uri && response && response.body) {
       try {
         const dataAnswer = JSON.parse(response.body);
+        if (response.status < 200 || response.status >= 300) {
+          return { success: false, error: dataAnswer.error || `Request failed (${response.status}).` };
+        }
         return { success: true, message: dataAnswer.message };
       } catch (e) {
         return { success: false, error: "Could not parse server response as JSON: " + response.body };

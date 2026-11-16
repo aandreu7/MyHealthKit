@@ -1,4 +1,3 @@
-// components/AskMedicineScreen.tsx
 // @aandreu7
 
 import { Alert, View, Text, Pressable, Image, ScrollView } from 'react-native';
@@ -11,21 +10,6 @@ type Props = {
   onBack: () => void;
   setScreen: React.Dispatch<React.SetStateAction<'home' | 'askMedicine' | 'addMedicine' | 'showMedicines' | 'requestAMyHealthKit'>>;
 };
-/*
-  // Function to play the recorded audio
-  const playAudio = async (uri) => {
-    if (sound) {
-      await sound.unloadAsync(); // Make sure to unload the previous sound if there was one
-    }
-    const { sound } = await Audio.Sound.createAsync(
-      { uri: uri }, // Pass the URI of the file
-      { shouldPlay: true } // Automatically play it
-    );
-    setSound(sound);
-    console.log('Playing audio...');
-  };
-*/
-
 export default function AskMedicineScreen({ onBack, setScreen }: Props) {
   const [permissionResponse, requestPermission] = Audio.usePermissions();
   const [recording, setRecording] = useState<Audio.Recording | undefined>();
@@ -33,7 +17,6 @@ export default function AskMedicineScreen({ onBack, setScreen }: Props) {
   const [diagnosisMessage, setDiagnosisMessage] = useState<string | null>(null);
   const [suggestedMedicines, setSuggestedMedicines] = useState<string[] | null>(null);
 
-  // const [sound, setSound] = useState(null);
 
   const soundRef = useRef<Audio.Sound | null>(null);
 

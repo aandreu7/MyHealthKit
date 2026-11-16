@@ -1,4 +1,3 @@
-// hooks/styles.tsx
 // @aandreu7
 
 import { StyleSheet } from 'react-native';
