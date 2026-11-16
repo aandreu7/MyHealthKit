@@ -3,7 +3,6 @@
 MyHealthKit is a modular robotic system designed to store, manage, and dispense medicines autonomously.
 
 ## Table of Contents
-- [GOAL](#goal)
 - [Description](#description)
   - [Project Overview](#project-overview)
 - [Tools & Dependencies](#tools--dependencies)
@@ -23,12 +22,7 @@ MyHealthKit is a modular robotic system designed to store, manage, and dispense 
 - [References](#references)
 - [Contributors](#contributors)
 - [License](#license)
-
-
-## GOAL
-
-Build the entire stack of an autonomous robot on the smallest possible budget.
-
+  
 ## Description
 
 <p align="center">
@@ -47,6 +41,8 @@ The software architecture relies on ROS packages for robust mapping, localizatio
 By integrating advanced sensor fusion, intuitive software interfaces, and precision-designed hardware, MyHealthKit provides a reliable medicine management solution tailored for home or clinical environments.
 
 This project and its repository is divided into two big modules: MyHealthController, related to all code running within the physical robot (SLAM, Navigation, server...), and MyHealthCall, a React Native application used to interact with the robot.
+
+An additional goal of this project was to accomplish all the requirements (SLAM, navigation, medicine management...) on the smallest possible budget.
 
 #### Note on ROS:
 
